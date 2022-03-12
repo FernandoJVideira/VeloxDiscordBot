@@ -123,7 +123,7 @@ class musicBot(commands.Cog):
         if isinstance(error, commands.errors.MissingRole):
             await ctx.send("You have to have the DJ Role to use this bot.")
     
-    @play.error
+    #@play.error
     async def errorhandler(self, ctx, error):
         if isinstance(error, commands.errors.CommandInvokeError):
             await ctx.send("Bot is not connected to a Voice Channel.")
