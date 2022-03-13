@@ -191,15 +191,6 @@ class CommandHandler(commands.Cog):
     @commands.has_permissions(kick_members = True)
     async def voicekick(self,ctx, user : discord.Member):
         await user.edit(voice_channel = None)
-        
-    @commands.command()
-    #@commands.has_permissions(mute_members = True)
-    async def chatmute(self, ctx, user : discord.Member):
-        guild = self.bot.get_guild(user.guild_id)
-        roleTaken = discord.utils.get(guild.roles, name = "👻Souls👻")
-        mutedRole = discord.utils.get(guild.roles, name = "Muted")
-        await user.remove_roles(roleTaken)
-        await user.add_roles(mutedRole)
 
     #----------------------------------------------//----------------------------------------------#
     #Error Handlers
