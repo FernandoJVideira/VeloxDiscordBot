@@ -3,7 +3,7 @@ import discord
 intents = discord.Intents().all()
 from discord.ext import commands
 
-bot = commands.Bot(command_prefix = "!!", help_command = None, intents = intents)
+bot = commands.Bot(command_prefix = ".u ", help_command = None, intents = intents)
 
 def is_me(ctx):
     return ctx.author.id == 249679918047166464

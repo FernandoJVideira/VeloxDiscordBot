@@ -3,7 +3,7 @@ import random
 from datetime import datetime
 from discord.ext import commands
 
-bot = commands.Bot(command_prefix = "!!", help_command = None)
+bot = commands.Bot(command_prefix = ".u ", help_command = None)
 
 
 class CommandHandler(commands.Cog):
@@ -55,10 +55,11 @@ class CommandHandler(commands.Cog):
                     await ctx.send("You won!") 
 
         else: 
-            await ctx.send("Please inser a valid play!")
+            await ctx.send("Please insert a valid play!")
 
     @commands.command(aliases=["about"])
     async def help(self,ctx):
+        #Fun Commands Embed
         MyEmbed = discord.Embed(title = "Fun Commands", description = "These are the bot's Fun commands", color = discord.Colour.orange())
         MyEmbed.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
         MyEmbed.add_field(name = "Bot Prefix", value = "The bot's Prefix is !!", inline = False)
@@ -67,6 +68,7 @@ class CommandHandler(commands.Cog):
         MyEmbed.add_field(name = "!!coinflip", value = "This command lets you flip a coin", inline = False)
         MyEmbed.add_field(name = "!!rps ✌️/🤜/✋", value = "This comand allows to play a game of rock paper scissors with the bot", inline = False)
         
+        #Music Commands Embed
         MusicEmbed = discord.Embed(title = "Music Commands", description = "These are the Bot's Music Commands", color = discord.Colour.orange())
         MusicEmbed.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
         MusicEmbed.add_field(name = "!!join", value = "This comand makes the bot join the voice channel you're in! ", inline = False)
@@ -74,7 +76,9 @@ class CommandHandler(commands.Cog):
         MusicEmbed.add_field(name = "!!skip", value = "This comand skips to the queue's next song!", inline = False)
         MusicEmbed.add_field(name = "!!pause", value = "This comand pauses the song playing!", inline = False)
         MusicEmbed.add_field(name = "!!resume", value = "This comand resumes the paused song!", inline = False)
+        MusicEmbed.add_field(name = "!!viewqueue", value = "This comand allows the user to view what songs are in queue!", inline = False)
         
+        #Admin/Mod Commands
         ModEmbed = discord.Embed(title = "Moderation/Admin Commands", description = "These are the Bot's Moderation Commands", color = discord.Colour.orange())
         ModEmbed.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
         ModEmbed.add_field(name = "!!edit servername", value = "Edits the server name!", inline = False)
@@ -90,6 +94,7 @@ class CommandHandler(commands.Cog):
         ModEmbed.add_field(name = "!!unmute/undeafen @user", value = "Unmutes/Undeafens a user in a Voice Channel!", inline = False)
         ModEmbed.add_field(name = "!!voicekick @user", value = "Kicks a user from the Voice Channel!", inline = False)
         
+        #DM Creation
         await ctx.author.create_dm()
         await ctx.author.dm_channel.send(embed = MyEmbed)
         await ctx.author.dm_channel.send(embed = MusicEmbed) 
@@ -149,7 +154,8 @@ class CommandHandler(commands.Cog):
             disc = bannedmember.user.discriminator
             if name == username and discriminator == disc:
                 await ctx.guild.unban(bannedmember.user)
-
+                await ctx.send(f"Unbanned {username} {disc}")
+                
     @commands.command()
     @commands.has_permissions(manage_messages = True)
     async def purge(self,ctx, amount, day : int = None, month : int = None, year : int = datetime.now().year):
@@ -185,7 +191,15 @@ class CommandHandler(commands.Cog):
     @commands.has_permissions(kick_members = True)
     async def voicekick(self,ctx, user : discord.Member):
         await user.edit(voice_channel = None)
-
+        
+    @commands.command()
+    @commands.has_permissions(mute_members = True)
+    async def chatmute(self, ctx, user : discord.Member):
+        guild = self.bot.get_guild(user.guild_id)
+        roleTaken = discord.utils.get(guild.roles, name = "👻Souls👻")
+        mutedRole = discord.utils.get(guild.roles, name = "Muted")
+        await user.remove_roles(roleTaken)
+        await user.add_roles(mutedRole)
 
     #----------------------------------------------//----------------------------------------------#
     #Error Handlers
