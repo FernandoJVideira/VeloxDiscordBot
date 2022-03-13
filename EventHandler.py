@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 intents = discord.Intents().all()
-bot = commands.Bot(command_prefix = '.u ', intents = intents)
+bot = commands.Bot(command_prefix = '.ds ', intents = intents)
 
 
 class eventHandler(commands.Cog):

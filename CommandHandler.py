@@ -3,7 +3,7 @@ import random
 from datetime import datetime
 from discord.ext import commands
 
-bot = commands.Bot(command_prefix = ".u ", help_command = None)
+bot = commands.Bot(command_prefix = ".ds ", help_command = None)
 
 
 class CommandHandler(commands.Cog):
@@ -193,7 +193,7 @@ class CommandHandler(commands.Cog):
         await user.edit(voice_channel = None)
         
     @commands.command()
-    @commands.has_permissions(mute_members = True)
+    #@commands.has_permissions(mute_members = True)
     async def chatmute(self, ctx, user : discord.Member):
         guild = self.bot.get_guild(user.guild_id)
         roleTaken = discord.utils.get(guild.roles, name = "👻Souls👻")

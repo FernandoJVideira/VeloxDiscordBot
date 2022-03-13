@@ -2,7 +2,7 @@ import discord, youtube_dl, os
 import asyncio
 from discord.ext import commands
 
-bot = commands.Bot(command_prefix = ".u ")
+bot = commands.Bot(command_prefix = ".ds ")
 queuelist = []
 filestodelete = []
 
