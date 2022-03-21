@@ -12,7 +12,7 @@ class musicBot(commands.Cog):
         self.bot = bot
         
     @commands.command()
-    @commands.has_role("DJ")
+    #@commands.has_role("DJ")
     async def join(self, ctx):
         channel = ctx.author.voice.channel
         await channel.connect()
@@ -23,7 +23,7 @@ class musicBot(commands.Cog):
         await ctx.voice_client.disconnect()
     
     @commands.command()
-    @commands.has_role("DJ")
+    #@commands.has_role("DJ")
     async def play(self, ctx, *, search):
         
         ydl_opts = {}
@@ -78,7 +78,7 @@ class musicBot(commands.Cog):
                 filestodelete.clear()
     
     @commands.command()
-    @commands.has_role("DJ")
+    #@commands.has_role("DJ")
     async def pause(self, ctx):
         voice = ctx.voice_client
         if voice.is_playing() == True:
@@ -87,7 +87,7 @@ class musicBot(commands.Cog):
             await ctx.send("Bot is not playing audio!")
     
     @commands.command()
-    @commands.has_role("DJ")
+    #@commands.has_role("DJ")
     async def skip(self, ctx):
         voice = ctx.voice_client
         if voice.is_playing() == True:
@@ -96,7 +96,7 @@ class musicBot(commands.Cog):
             await ctx.send("Bot is not playing audio!")
     
     @commands.command()
-    @commands.has_role("DJ")
+    #@commands.has_role("DJ")
     async def resume(self, ctx):
         voice = ctx.voice_client
         if voice.is_playing() == True:
