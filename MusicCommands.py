@@ -18,7 +18,7 @@ class musicBot(commands.Cog):
         await channel.connect()
     
     @commands.command()
-    @commands.has_role("DJ")
+    #@commands.has_role("DJ")
     async def leave(self, ctx):
         await ctx.voice_client.disconnect()
     

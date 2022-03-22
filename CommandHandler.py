@@ -62,7 +62,7 @@ class CommandHandler(commands.Cog):
         #Fun Commands Embed
         MyEmbed = discord.Embed(title = "Fun Commands", description = "These are the bot's Fun commands", color = discord.Colour.orange())
         MyEmbed.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
-        MyEmbed.add_field(name = "Bot Prefix", value = "The bot's Prefix is !!", inline = False)
+        MyEmbed.add_field(name = "Bot Prefix", value = "The bot's Prefix is .ds", inline = False)
         MyEmbed.add_field(name = "Fun Commands", value = "Some Fun Bot Commands", inline = False)
         MyEmbed.add_field(name = "!!ping", value = "The bot replies with Pong!", inline = False)
         MyEmbed.add_field(name = "!!coinflip", value = "This command lets you flip a coin", inline = False)
