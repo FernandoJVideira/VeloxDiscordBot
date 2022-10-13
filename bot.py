@@ -36,4 +36,4 @@ async def reloadmusic(ctx):
 bot.load_extension("CommandHandler")
 bot.load_extension("EventHandler")
 bot.load_extension("MusicCommands")   
-bot.run("NDQ3NDI0MTgxMTM1NjA1ODAw.WwBGPQ.ScAkseYjEAKAb2BhJsjfJz7AKeQ")
+bot.run("NDQ3NDI0MTgxMTM1NjA1ODAw.G4vZBN.sM34slbM8L3CwrP4Wkf2KgoieyaknDSyA67ZQQ")
