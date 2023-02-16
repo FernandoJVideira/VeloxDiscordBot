@@ -1,8 +1,10 @@
-import discord, youtube_dl, os
+import nextcord, youtube_dl, os
 import asyncio
-from discord.ext import commands
+from nextcord.ext import commands
 
-bot = commands.Bot(command_prefix = ".ds ")
+intents = nextcord.Intents().all()
+
+bot = commands.Bot(command_prefix = ".ds ", help_command = None, intents = intents)
 queuelist = []
 filestodelete = []
 
@@ -58,16 +60,16 @@ class musicBot(commands.Cog):
             queuelist.append(title)
             await ctx.send(f"Added to Queue: ** {title} **")
         else:
-            voice.play(discord.FFmpegPCMAudio(f"{title}.mp3"), after = lambda e : check_queue())
+            voice.play(nextcord.FFmpegPCMAudio(f"{title}.mp3"), after = lambda e : check_queue())
             await ctx.send(f"Playing: ** {title} ** :musical_note:")
             filestodelete.append(title)
-            await self.bot.change_presence(activity = discord.Activity(type = discord.ActivityType.listening, name = title))
+            await self.bot.change_presence(activity = nextcord.Activity(type = nextcord.ActivityType.listening, name = title))
                         
         def check_queue():
             try:
                 if queuelist[0] != None:
-                    voice.play(discord.FFmpegPCMAudio(f"{queuelist[0]}.mp3"), after = lambda e : check_queue())
-                    coro = self.bot.change_presence(activity = discord.Activity(type = discord.ActivityType.listening, name = queuelist[0]))
+                    voice.play(nextcord.FFmpegPCMAudio(f"{queuelist[0]}.mp3"), after = lambda e : check_queue())
+                    coro = self.bot.change_presence(activity = nextcord.Activity(type = nextcord.ActivityType.listening, name = queuelist[0]))
                     fut = asyncio.run_coroutine_threadsafe(coro, self.bot.loop)
                     fut.result()
                     filestodelete.append(queuelist[0])

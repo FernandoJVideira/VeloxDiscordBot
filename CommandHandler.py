@@ -1,10 +1,12 @@
-import discord
+import nextcord
+from nextcord import Interaction
 import random
 from datetime import datetime
-from discord.ext import commands
+from nextcord.ext import commands
 
-bot = commands.Bot(command_prefix = ".ds ", help_command = None)
+intents = nextcord.Intents().all()
 
+bot = commands.Bot(command_prefix = ".ds ", help_command = None, intents = intents)
 
 class CommandHandler(commands.Cog):
     
@@ -12,20 +14,20 @@ class CommandHandler(commands.Cog):
         self.bot = bot
 
     #Fun Commands
-    @commands.command()
-    async def ping(self,ctx):
+    @bot.slash_command()
+    async def ping(self, ctx : Interaction):
         await ctx.send("Pong!")
 
-    @commands.command()
-    async def coinflip(self,ctx):
+    @bot.slash_command(description="Flips a coin")
+    async def coinflip(self,ctx : Interaction):
         num = random.randint(1, 2)
         if num == 1:
             await ctx.send("Heads!")
         if num == 2:
             await ctx.send("Tails!")
 
-    @commands.command()
-    async def rps(self,ctx, hand):
+    @bot.slash_command()
+    async def rps(self,ctx : Interaction, hand : str):
 
         hands = ["✌️","✋","🤜"]
         handExist = hand in hands
@@ -57,10 +59,10 @@ class CommandHandler(commands.Cog):
         else: 
             await ctx.send("Please insert a valid play!")
 
-    @commands.command(aliases=["about"])
-    async def help(self,ctx):
+    @bot.slash_command()
+    async def help(self,ctx : Interaction):
         #Fun Commands Embed
-        MyEmbed = discord.Embed(title = "Fun Commands", description = "These are the bot's Fun commands", color = discord.Colour.orange())
+        MyEmbed = nextcord.Embed(title = "Fun Commands", description = "These are the bot's Fun commands", color = nextcord.Colour.orange())
         MyEmbed.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
         MyEmbed.add_field(name = "Bot Prefix", value = "The bot's Prefix is .ds", inline = False)
         MyEmbed.add_field(name = "Fun Commands", value = "Some Fun Bot Commands", inline = False)
@@ -69,7 +71,7 @@ class CommandHandler(commands.Cog):
         MyEmbed.add_field(name = ".ds rps ✌️/🤜/✋", value = "This comand allows to play a game of rock paper scissors with the bot", inline = False)
         
         #Music Commands Embed
-        MusicEmbed = discord.Embed(title = "Music Commands", description = "These are the Bot's Music Commands", color = discord.Colour.orange())
+        MusicEmbed = nextcord.Embed(title = "Music Commands", description = "These are the Bot's Music Commands", color = nextcord.Colour.orange())
         MusicEmbed.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
         MusicEmbed.add_field(name = ".ds join", value = "This comand makes the bot join the voice channel you're in! ", inline = False)
         MusicEmbed.add_field(name = ".ds play", value = "This comand makes the bot Play a song when in a voice channel! ", inline = False)
@@ -79,7 +81,7 @@ class CommandHandler(commands.Cog):
         MusicEmbed.add_field(name = ".ds viewqueue", value = "This comand allows the user to view what songs are in queue!", inline = False)
         
         #Admin/Mod Commands
-        ModEmbed = discord.Embed(title = "Moderation/Admin Commands", description = "These are the Bot's Moderation Commands", color = discord.Colour.orange())
+        ModEmbed = nextcord.Embed(title = "Moderation/Admin Commands", description = "These are the Bot's Moderation Commands", color = nextcord.Colour.orange())
         ModEmbed.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
         ModEmbed.add_field(name = ".ds edit servername", value = "Edits the server name!", inline = False)
         ModEmbed.add_field(name = ".ds edit region", value = "Edit's the server Region!", inline = False)
@@ -95,10 +97,10 @@ class CommandHandler(commands.Cog):
         ModEmbed.add_field(name = ".ds voicekick @user", value = "Kicks a user from the Voice Channel!", inline = False)
         
         #DM Creation
-        await ctx.author.create_dm()
-        await ctx.author.dm_channel.send(embed = MyEmbed)
-        await ctx.author.dm_channel.send(embed = MusicEmbed) 
-        await ctx.author.dm_channel.send(embed = ModEmbed)   
+        await ctx.user.create_dm()
+        await ctx.user.dm_channel.send(embed = MyEmbed)
+        await ctx.user.dm_channel.send(embed = MusicEmbed) 
+        await ctx.user.dm_channel.send(embed = ModEmbed)   
 
     #Group Command EditSever
     @bot.group()
@@ -135,12 +137,12 @@ class CommandHandler(commands.Cog):
 
     @commands.command()
     @commands.has_permissions(kick_members = True)
-    async def kick(self,ctx, member : discord.Member, *, reason = None):
+    async def kick(self,ctx, member : nextcord.Member, *, reason = None):
         await ctx.guild.kick(member, reason = reason)
 
     @commands.command()
     @commands.has_permissions(ban_members = True)
-    async def ban(self,ctx, member : discord.Member, *, reason = None):
+    async def ban(self,ctx, member : nextcord.Member, *, reason = None):
         await ctx.guild.ban(member, reason = reason)
         await ctx.send(f"Banned {member}")
 
@@ -169,27 +171,27 @@ class CommandHandler(commands.Cog):
 
     @commands.command()
     @commands.has_permissions(mute_members = True)
-    async def mute(ctx, user : discord.Member):
+    async def mute(ctx, user : nextcord.Member):
         await user.edit(mute = True)
 
     @commands.command()
     @commands.has_permissions(mute_members = True)
-    async def unmute(self,ctx, user : discord.Member):
+    async def unmute(self,ctx, user : nextcord.Member):
         await user.edit(mute = False)
 
     @commands.command()
     @commands.has_permissions(deafen_members = True)
-    async def deafenself(self,ctx, user : discord.Member):
+    async def deafenself(self,ctx, user : nextcord.Member):
         await user.edit(deafen = True)
 
     @commands.command()
     @commands.has_permissions(deafen_members = True)
-    async def undeafen(self,ctx, user : discord.Member):
+    async def undeafen(self,ctx, user : nextcord.Member):
         await user.edit(deafen = False)
 
     @commands.command()
     @commands.has_permissions(kick_members = True)
-    async def voicekick(self,ctx, user : discord.Member):
+    async def voicekick(self,ctx, user : nextcord.Member):
         await user.edit(voice_channel = None)
 
     #----------------------------------------------//----------------------------------------------#
@@ -256,7 +258,7 @@ class CommandHandler(commands.Cog):
             await ctx.send("You have to specify either a date or an amout.")
         if isinstance(error, commands.CommandInvokeError):
             await ctx.send("You can only have a / or a number as the 1st input.")
-            
+
         
 def setup(bot):
     bot.add_cog(CommandHandler(bot))
