@@ -1,7 +1,7 @@
 import nextcord
 import wavelink
 from nextcord.ext import commands, application_checks
-from nextcord import Interaction
+from nextcord import Interaction, SlashOption
 
 bot = commands.Bot(command_prefix = ".ds ", help_command = None, intents = nextcord.Intents().all())
 
@@ -33,7 +33,7 @@ class Music(commands.Cog):
         await ctx.send(f"Now playing: `{next_song.title}`")
 
     @bot.slash_command(name="play", description="Play a song in your voice channel.")
-    async def play(self, ctx : Interaction, search: str):
+    async def play(self, ctx : Interaction, search: str = SlashOption(description="The song you want to play.")):
         role = nextcord.utils.get(ctx.guild.roles, name="DJ")
 
         if role not in ctx.user.roles:
