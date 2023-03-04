@@ -110,6 +110,7 @@ class CommandHandler(commands.Cog):
         ModEmbed.add_field(name = "/voicekick @user", value = "Kicks a user from the Voice Channel!", inline = False)
         
         #DM Creation
+        await ctx.send("Check your DMs!")
         await ctx.user.create_dm()
         await ctx.user.dm_channel.send(embed = MyEmbed)
         await ctx.user.dm_channel.send(embed = MusicEmbed) 
