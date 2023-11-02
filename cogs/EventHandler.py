@@ -1,19 +1,13 @@
-import nextcord
-from nextcord.ext import commands
+import discord
+from discord.ext import commands
 
-intents = nextcord.Intents().all()
-bot = commands.Bot(command_prefix='.ds ', intents=intents)
-ROLE_ID = 1074785999336509565  # TODO: change this to database connection
+ROLE_ID = 1169285656602755092  # TODO: change this to database connection
 
 
 class eventHandler(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        print("Ready!")
 
     @commands.Cog.listener()
     async def on_member_update(self, before, after):
@@ -25,5 +19,5 @@ class eventHandler(commands.Cog):
             await after.add_roles(role)
 
 
-def setup(bot):
-    bot.add_cog(eventHandler(bot))
+async def setup(bot):
+    await bot.add_cog(eventHandler(bot))
