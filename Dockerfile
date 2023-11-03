@@ -4,6 +4,7 @@ WORKDIR /bot
 
 RUN pip install discord.py
 RUN pip install wavelink
+RUN pip install easy-pil
 
 COPY . .
 

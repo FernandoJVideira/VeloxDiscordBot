@@ -1,8 +1,6 @@
 import os
 import discord
 from discord.ext import commands
-
-
 class MyBot(commands.Bot):
 
     def __init__(self):
@@ -15,8 +13,7 @@ class MyBot(commands.Bot):
     async def setup_hook(self):
         for extention in ["cogs.MusicBot", "cogs.EventHandler", "cogs.CommandHandler"]:
             await bot.load_extension(extention)
-
-        await bot.tree.sync(guild=discord.Object(id=1169255234598600804))
+        await self.tree.sync()
 
     async def on_ready(self):
         print("Ready for action!")

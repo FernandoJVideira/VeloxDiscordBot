@@ -5,8 +5,6 @@ from wavelink import TrackEventPayload, Player
 from discord.ext import commands
 from discord import app_commands
 
-
-
 class Music(commands.Cog):
 
     def __init__(self, bot):
@@ -66,12 +64,22 @@ class Music(commands.Cog):
 
         #Play the song
         if not vc.is_playing():
-            await ctx.response.send_message(f'Playing track: `{track.title}`')
+            musicEmbed = discord.Embed(title="Now Playing", description=f"{track.title}", color=discord.Color.orange())
+            thumbURL = await track.fetch_thumbnail()
+            musicEmbed.set_thumbnail(url=thumbURL)
+            musicEmbed.add_field(name="Duration", value=str(datetime.timedelta(milliseconds=track.duration)))
+            musicEmbed.add_field(name="Requested by", value=ctx.user.mention)
+            await ctx.response.send_message(embed=musicEmbed)
             await vc.play(track)
             return
         else:
             await vc.queue.put_wait(track)
-            await ctx.response.send_message(f'Added track: `{track.title}` to queue.')
+            queueEmbed = discord.Embed(title="Added to queue", description=f"{track.title}", color=discord.Color.orange())
+            thumbURL = await track.fetch_thumbnail()
+            queueEmbed.set_thumbnail(url=thumbURL)
+            queueEmbed.add_field(name="Duration", value=str(datetime.timedelta(milliseconds=track.duration)))
+            queueEmbed.add_field(name="Requested by", value=ctx.user.mention)
+            await ctx.response.send_message(embed=queueEmbed)
 
  
     @app_commands.command(name="pause", description="Pause the current song.")
@@ -105,8 +113,23 @@ class Music(commands.Cog):
             await ctx.response.send_message("I am not playing anything.")
             return
 
-        await vc.stop()
+        await vc.stop(force=True)
         await ctx.response.send_message("Skipped the current song.")
+
+    @app_commands.command(name="setvolume", description="Sets the bot volume.")
+    @app_commands.describe(volume="The volume you want to set.")
+    @app_commands.checks.has_role("DJ")
+    async def setvolume(self, ctx: discord.Interaction, volume: int):
+        vc: wavelink.Player = ctx.guild.voice_client
+        if not vc or not vc.is_playing():
+            await ctx.response.send_message("I am not playing anything.")
+            return
+        elif volume < 0 or volume > 1000:
+            await ctx.response.send_message("The volume must be between 0 and 1000.")
+            return
+
+        await vc.set_volume(volume)
+        await ctx.response.send_message(f"Set the volume to {volume}.")
 
     @app_commands.command(name="queue", description="Shows the current queue.")
     async def queue(self, ctx: discord.Interaction):
@@ -115,7 +138,7 @@ class Music(commands.Cog):
             songCounter = 0
             songs = []
             queue = vc.queue.copy()
-            embed = discord.Embed(title="Queue", color=discord.Color.blurple())
+            embed = discord.Embed(title="Queue", color=discord.Color.orange())
 
             for song in queue:
                 songCounter += 1
@@ -204,4 +227,4 @@ class Music(commands.Cog):
             await ctx.response.send_message("An unknown error occured.")
             
 async def setup(bot):
-    await bot.add_cog(Music(bot), guilds=[discord.Object(id=1169255234598600804)])
+    await bot.add_cog(Music(bot))
