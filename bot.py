@@ -1,4 +1,5 @@
 import os
+#from dotenv import load_dotenv
 import discord
 from discord.ext import commands
 class MyBot(commands.Bot):
@@ -15,9 +16,6 @@ class MyBot(commands.Bot):
             await bot.load_extension(extention)
         await self.tree.sync()
 
-    async def on_ready(self):
-        print("Ready for action!")
-
 bot = MyBot()
-
+#load_dotenv("./vars.env")
 bot.run(os.getenv("TOKEN"))

@@ -11,6 +11,7 @@ database = sqlite3.connect("bot.db")
 cursor = database.cursor()
 cursor.execute("CREATE TABLE IF NOT EXISTS welcome (guild_id INT, welcome_channel_id INT)")
 cursor.execute("CREATE TABLE IF NOT EXISTS levelup (guild_id INT, levelup_channel_id INT)")
+cursor.execute("CREATE TABLE IF NOT EXISTS twitch_config (guild_id INT, twitch_channel_id INT)")
 cursor.execute("CREATE TABLE IF NOT EXISTS rps (guild_id INT, user_id INT, score INT)")
 class CommandHandler(commands.Cog):
     
@@ -51,12 +52,12 @@ class CommandHandler(commands.Cog):
         options = options.split()
         await ctx.response.send_message("Starting poll...")
         if options[0] == "-":
-            pollEmbed = discord.Embed(title = title, description = f"You have **{minutes}** minutes remaining!")
+            pollEmbed = discord.Embed(title = title, description = f"You have **{minutes}** minutes remaining!", color = discord.Colour.orange())
             msg = await ctx.channel.send(embed = pollEmbed)
             await msg.add_reaction("👍")
             await msg.add_reaction("👎")
         else:
-            pollEmbed = discord.Embed(title = title, description = f"You have **{minutes}** minutes remaining!")
+            pollEmbed = discord.Embed(title = title, description = f"You have **{minutes}** minutes remaining!", color=discord.Colour.orange())
             for number,option in enumerate(options):
                 pollEmbed.add_field(name = f"{self.numbers[number]}", value = f"**{option}**", inline = False)
             msg = await ctx.channel.send(embed = pollEmbed)
@@ -71,7 +72,7 @@ class CommandHandler(commands.Cog):
         count = self.poll_loop.current_loop
         remainingTime = minutes - count
 
-        newEmbed = discord.Embed(title = title, description = f"You have **{remainingTime}** minutes remaining!")
+        newEmbed = discord.Embed(title = title, description = f"You have **{remainingTime}** minutes remaining!", color=discord.Colour.orange())
         if options[0] == "-":
             await msg.edit(embed = newEmbed)
         else:
@@ -256,7 +257,7 @@ class CommandHandler(commands.Cog):
     async def rpsleaderboard(self,ctx : discord.Interaction):
         scores = cursor.execute("SELECT user_id, score FROM rps WHERE guild_id = ? ORDER BY score DESC", (ctx.guild.id,)).fetchall()
         if scores is not None:
-            embed = discord.Embed(title = "RPS Leaderboard", description = "These are the RPS Leaderboard", color = discord.Colour.orange())
+            embed = discord.Embed(title = "RPS Leaderboard", description = "These is the RPS Leaderboard", color = discord.Colour.orange())
             for score in scores:
                 user = await self.bot.fetch_user(score[0])
                 embed.add_field(name = f"{user.name}", value = f"Score: {score[1]}", inline = False)
@@ -477,6 +478,33 @@ class CommandHandler(commands.Cog):
             cursor.execute("UPDATE levelup SET levelup_channel_id = ? WHERE guild_id = ?", (channel.id, ctx.guild.id))
             database.commit()
         await ctx.response.send_message(f"Level Up Channel set to {channel.mention}")
+
+    @config.command(name="settwitchnotificationchannel", description="Sets the Channel for Twitch Notifications")
+    @app_commands.describe(channel = "The channel to set as the Notification Channel")
+    @app_commands.checks.has_permissions(manage_guild = True)
+    async def setwelcomechannel(self,ctx : discord.Interaction, channel : discord.TextChannel):
+        cursor.execute("SELECT * FROM twitch_config WHERE guild_id = ?", (ctx.guild.id,))
+        if cursor.fetchone() is None:
+            cursor.execute("INSERT INTO twitch_config VALUES (?,?)", (ctx.guild.id, channel.id))
+            database.commit()
+        else:
+            cursor.execute("UPDATE twitch_config SET welcome_channel_id = ? WHERE guild_id = ?", (channel.id, ctx.guild.id))
+            database.commit()
+        await ctx.response.send_message(f"Notification Channel set to {channel.mention}")
+
+    @config.command(name="addstreamer", description="Adds a Streamer for Twitch Notifications")
+    @app_commands.describe(streamer = "The streamer to add")
+    @app_commands.checks.has_permissions(manage_guild = True)
+    async def addStreamer(self,ctx : discord.Interaction, streamer : str):
+        notChannel = cursor.execute("SELECT twitch_channel_id FROM twitch_config WHERE guild_id = ?", (ctx.guild.id,)).fetchone()
+
+        if notChannel[0] is None:
+            await ctx.response.send_message("Please set a Notification Channel first!")
+        else:
+            cursor.execute("INSERT INTO twitch VALUES (?,?)", (streamer, ctx.guild.id))
+            database.commit()
+            await ctx.response.send_message(f"Added {streamer} to the Streamers List!")
+
     #----------------------------------------------//----------------------------------------------#
     #Error Handlers
 

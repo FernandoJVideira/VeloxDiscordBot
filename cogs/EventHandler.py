@@ -1,23 +1,43 @@
+import os
 import random
 import discord
-from discord.ext import commands
+import requests
+from twitchAPI.twitch import Twitch
+from discord.ext import commands, tasks
 import sqlite3
 
 database = sqlite3.connect("bot.db")
 cursor = database.cursor()
 cursor.execute("CREATE TABLE IF NOT EXISTS levels (level INT, xp INT, user INT, guild INT)")
 cursor.execute("CREATE TABLE IF NOT EXISTS roles (level INT, role_name TEXT)")
+cursor.execute("CREATE TABLE IF NOT EXISTS twitch (twitch_user TEXT, guild_id INT)")
 cursor.execute("INSERT INTO roles VALUES (?,?)", (5, "Level 5"))
 cursor.execute("INSERT INTO roles VALUES (?,?)", (10, "Level 10"))
 cursor.execute("INSERT INTO roles VALUES (?,?)", (20, "Level 20"))
 cursor.execute("INSERT INTO roles VALUES (?,?)", (30, "Level 30"))
-
 database.commit()
+
+
+#* Authentication with Twitch API. 
+client_id = os.getenv("TWITCH_CLIENT_ID")
+client_secret = os.getenv("TWITCH_CLIENT_SECRET")
+twitch = Twitch(client_id, client_secret)
+TWITCH_STREAM_API_ENDPOINT = "https://api.twitch.tv/helix/streams?user_id={}"
+API_HEADERS = {
+    'Authorization': 'Bearer ' + os.getenv("TWITCH_AUTH_TOKEN"),
+    'Client-ID': client_id,
+}
 
 class eventHandler(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        print("Ready for action!")
+        await twitch.authenticate_app([])
+        self.live_notifs_loop.start()
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
@@ -70,14 +90,12 @@ class eventHandler(commands.Cog):
 
         if level < 5:
             xp += random.randint(1, 3)
-            #xp += 100
             cursor.execute("UPDATE levels SET xp = ? WHERE user = ? AND guild = ?", (xp, author.id, guild.id))
             database.commit()
         else:
             rand = random.randint(1, (level//4))
             if rand == 1:
                 xp += random.randint(1, 3)
-                #xp += 100
                 cursor.execute("UPDATE levels SET xp = ? WHERE user = ? AND guild = ?", (xp, author.id, guild.id))
                 database.commit()
         if xp >= 100:
@@ -96,22 +114,69 @@ class eventHandler(commands.Cog):
         await self.bot.process_commands(message)
 
 
-async def setLevelRole(guild, author, level):
-    role_name = cursor.execute("SELECT role_name FROM roles WHERE level = ?", (level,)).fetchone()
-    if role_name is not None:
-        if discord.utils.get(guild.roles,name=role_name[0]) is None:
-            roles = cursor.execute("SELECT role_name FROM roles",).fetchall()
-            for role in roles:
-                if discord.utils.get(guild.roles,name=role[0]) is None:
-                    await guild.create_role(name=role[0], mentionable=False)
-            role = discord.utils.get(guild.roles,name=role_name[0])
-        else:
-            role = discord.utils.get(guild.roles,name=role_name[0])
-        
-        if role is not None:
-            await author.add_roles(role)
-            return
+    @tasks.loop(seconds=30)
+    async def live_notifs_loop(self):
+        guilds = cursor.execute("SELECT guild_id FROM twitch").fetchall()
+        if guilds is not None:
+            for guild_id in guilds:
+                # Gets the guild, 'twitch streams' channel
+                channel = cursor.execute("SELECT twitch_channel_id FROM twitch_config WHERE guild_id = ?", (guild_id[0],)).fetchone()
+                channel = self.bot.get_channel(channel[0])
 
+                twitch_users = cursor.execute("SELECT twitch_user FROM twitch WHERE guild_id = ?", (guild_id[0],)).fetchall()
+
+                for twitch_user in twitch_users:
+                    status = await checkuser(twitch_user[0])
+                    print(status)
+                    if status is True:
+                        async for message in channel.history(limit=200):
+                            sent_notification = False
+                            if str(twitch_user[0]) in message.content and "is now streaming" in message.content:
+                                print(f"{twitch_user} is already streaming. Not sending a notification.")
+                                sent_notification = True
+                                break
+                        if not sent_notification:
+                            await channel.send(
+                                f":red_circle: **LIVE**\n @everyone is now streaming on Twitch!"
+                                f"\nhttps://www.twitch.tv/{twitch_user[0]}")
+                            print(f"{twitch_user} started streaming. Sending a notification.")                    
 
 async def setup(bot):
     await bot.add_cog(eventHandler(bot))
+
+async def setLevelRole(guild, author, level):
+        role_name = cursor.execute("SELECT role_name FROM roles WHERE level = ?", (level,)).fetchone()
+        if role_name is not None:
+            if discord.utils.get(guild.roles,name=role_name[0]) is None:
+                roles = cursor.execute("SELECT role_name FROM roles",).fetchall()
+                for role in roles:
+                    if discord.utils.get(guild.roles,name=role[0]) is None:
+                        await guild.create_role(name=role[0], mentionable=False)
+                role = discord.utils.get(guild.roles,name=role_name[0])
+            else:
+                role = discord.utils.get(guild.roles,name=role_name[0])
+            
+            if role is not None:
+                await author.add_roles(role)
+                return
+
+#*Returns true if online, false if not.
+async def checkuser(user):
+    try:
+        twitch_user_generator = twitch.get_users(logins=[user])
+        twitch_user = await twitch_user_generator.__anext__()
+        userid = twitch_user.id
+        url = TWITCH_STREAM_API_ENDPOINT.format(userid)
+        try:
+            req = requests.Session().get(url, headers= API_HEADERS)
+            print(url)
+            jsondata = req.json()
+            if jsondata['data'][0]['type'] == "live":
+                return True
+            else:
+                return False
+        except Exception as e:
+            print("Error checking user: ", e)
+            return False
+    except StopAsyncIteration:
+        return False
