@@ -89,16 +89,13 @@ class eventHandler(commands.Cog):
             level = 0
 
         if level < 5:
-            #xp += random.randint(1, 3)
-            xp+=100
+            xp += random.randint(1, 3)
             cursor.execute("UPDATE levels SET xp = ? WHERE user = ? AND guild = ?", (xp, author.id, guild.id))
             database.commit()
         else:
-            #rand = random.randint(1, (level//4))
-            rand = 1
+            rand = random.randint(1, (level//4))
             if rand == 1:
-                #xp += random.randint(1, 3)
-                xp+=100
+                xp += random.randint(1, 3)
                 cursor.execute("UPDATE levels SET xp = ? WHERE user = ? AND guild = ?", (xp, author.id, guild.id))
                 database.commit()
         if xp >= 100:
@@ -160,6 +157,11 @@ async def setLevelRole(guild, author, level):
                 role = discord.utils.get(guild.roles,name=role_name[0])
             
             if role is not None:
+                if any(role.name == "Level 5" for role in author.roles):
+                    await author.remove_roles(discord.utils.get(guild.roles,name="Level 5"))
+                if any(role.name == f"Level {level-10}" for role in author.roles):
+                    await author.remove_roles(discord.utils.get(guild.roles,name=f"Level {level-10}"))
+
                 await author.add_roles(role)
                 return
 
