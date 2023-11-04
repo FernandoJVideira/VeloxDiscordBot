@@ -160,11 +160,6 @@ async def setLevelRole(guild, author, level):
                 role = discord.utils.get(guild.roles,name=role_name[0])
             
             if role is not None:
-                if any(role.name == "Level 5" for role in author.roles):
-                    await author.remove_roles(discord.utils.get(guild.roles,name="Level 5"))
-                if any(role.name == f"Level {level-10}" for role in author.roles):
-                    await author.remove_roles(discord.utils.get(guild.roles,name=f"Level {level-10}"))
-
                 await author.add_roles(role)
                 return
 

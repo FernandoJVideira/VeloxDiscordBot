@@ -47,7 +47,7 @@ class CommandHandler(commands.Cog):
 
     @app_commands.command(name="poll", description="Starts a Poll!")
     @app_commands.describe(title = "The question to ask, has to be in quotation marks", options = 'The options to choose from in the format "Option1 Option2 Option3"')
-    @app_commands.checks.has_permissions(manage_messages = True)
+    #@app_commands.checks.has_permissions()
     async def poll(self, ctx : discord.Interaction, minutes : int, title: str, options : str):
         options = options.split()
         await ctx.response.send_message("Starting poll...")
@@ -260,7 +260,7 @@ class CommandHandler(commands.Cog):
             embed = discord.Embed(title = "RPS Leaderboard", description = "These is the RPS Leaderboard", color = discord.Colour.orange())
             for score in scores:
                 user = await self.bot.fetch_user(score[0])
-                embed.add_field(name = f"{user.display_name}", value = f"Score: {score[1]}", inline = False)
+                embed.add_field(name = f"{user.name}", value = f"Score: {score[1]}", inline = False)
             await ctx.response.send_message(embed=embed)
 
     @app_commands.command(name="help", description="Shows the bot's commands")
