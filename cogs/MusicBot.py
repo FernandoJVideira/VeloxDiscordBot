@@ -1,4 +1,5 @@
 import datetime
+import os
 import discord
 import wavelink
 from wavelink import TrackEventPayload, Player
@@ -15,7 +16,7 @@ class Music(commands.Cog):
         await self.bot.wait_until_ready()
 
         node: wavelink.Node = wavelink.Node(
-            uri='lavalink:2333', password='<Password Here>', secure=False)
+            uri='lavalink:2333', password=os.getenv('LAVALINK_PASSWORD'), secure=False)
         await wavelink.NodePool.connect(client=self.bot, nodes=[node])
         
     @commands.Cog.listener()
