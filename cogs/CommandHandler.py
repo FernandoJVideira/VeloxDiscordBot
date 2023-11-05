@@ -117,6 +117,12 @@ class CommandHandler(commands.Cog):
     async def rank(self, ctx : discord.Interaction, member: discord.Member = None):
         if member is None:
             member = ctx.user
+        cursor.execute("SELECT levelsys FROM levelsettings WHERE guild_id = ?", (ctx.guild.id,))
+        levelsys = cursor.fetchone()
+        if levelsys and not levelsys[0]:
+            await ctx.response.send_message("The Leveling System is disabled in this server!")
+            return
+        
         xp = cursor.execute("SELECT xp FROM levels WHERE user = ? AND guild = ?", (member.id, ctx.guild.id)).fetchone()
         level = cursor.execute("SELECT level FROM levels WHERE user = ? AND guild = ?", (member.id, ctx.guild.id)).fetchone()
 
@@ -159,6 +165,46 @@ class CommandHandler(commands.Cog):
 
         file = discord.File(fp=background.image_bytes, filename="levelcard.png")
         await ctx.response.send_message(file=file)
+
+    @app_commands.command(name="rewards", description="Lets you see the rewards for each level")
+    async def rewards(self, ctx : discord.Interaction):
+        cursor.execute("SELECT levelsys FROM levelsettings WHERE guild_id = ?", (ctx.guild.id,))
+        levelsys = cursor.fetchone()
+        if levelsys and not levelsys[0]:
+            await ctx.response.send_message("The Leveling System is disabled in this server!")
+            return
+        cursor.execute("SELECT * FROM levelsettings WHERE guild_id = ?", (ctx.guild.id,))
+        rolelevels = cursor.fetchall()
+        if not rolelevels:
+            await ctx.response.send_message("There are no rewards set for this server!")
+            return
+        em = discord.Embed(title = "Rewards", description = "These are the rewards for each level", color = discord.Colour.orange())
+        for role in rolelevels:
+            role_obj = ctx.guild.get_role(role[1])
+            if role_obj is not None:
+                em.add_field(name = f"Level {role[2]}", value = f"{role_obj.mention}", inline = False)
+            else:
+                em.add_field(name = f"Level {role[2]}", value = f"Role not found", inline = False)
+        await ctx.response.send_message(embed = em)
+
+    @app_commands.command(name="leaderbord", description="Displays the server's leaderboard")
+    async def leaderboard(self, ctx : discord.Interaction):
+        cursor.execute("SELECT levelsys FROM levelsettings WHERE guild_id = ?", (ctx.guild.id,))
+        levelsys = cursor.fetchone()
+        if levelsys and not levelsys[0]:
+            await ctx.response.send_message("The Leveling System is disabled in this server!")
+            return
+        cursor.execute("SELECT level, xp, user FROM levels WHERE guild = ? ORDER BY level DESC, xp DESC LIMIT 10", (ctx.guild.id,))
+        data = cursor.fetchall()
+        if data:
+            em = discord.Embed(title = "Leaderboard", description = "These are the top 10 users in the server", color = discord.Colour.orange())
+            count = 0
+            for table in data:
+                count += 1
+                user = ctx.guild.get_member(table[2])
+                em.add_field(name = f"{count}. {user.display_name}", value = f"Level: **{table[0]}** | XP: **{table[1]}**", inline = False)
+            return await ctx.response.send_message(embed = em)
+        return await ctx.response.send_message("There are no users in the leaderboard!")
 
     @app_commands.command(name="rps", description="Plays Rock Paper Scissors with you")
     @app_commands.describe(hand = "Choose between ✌️, ✋ or 🤜")
@@ -265,17 +311,20 @@ class CommandHandler(commands.Cog):
 
     @app_commands.command(name="help", description="Shows the bot's commands")
     async def help(self,ctx : discord.Interaction):
+
         #Fun Commands Embed
-        MyEmbed = discord.Embed(title = "Fun Commands", description = "These are the bot's Fun commands", color = discord.Colour.orange())
-        MyEmbed.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
-        MyEmbed.add_field(name = "Fun Commands", value = "Some Fun Bot Commands", inline = False)
-        MyEmbed.add_field(name = "/ping", value = "The bot replies with Pong!", inline = False)
-        MyEmbed.add_field(name = "/coinflip", value = "This command lets you flip a coin", inline = False)
-        MyEmbed.add_field(name = "/rps ✌️/🤜/✋", value = "This comand allows to play a game of rock paper scissors with the bot", inline = False)
-        MyEmbed.add_field(name = "/rpsstats", value = "This comand allows you to view your RPS Stats", inline = False)
-        MyEmbed.add_field(name = "/rpsleaderboard", value = "This comand allows you to view the RPS Leaderboard", inline = False)
-        MyEmbed.add_field(name = "/dice NdN", value = "This comand allows you to roll a dice in NdN format. Example: 1d6", inline = False)
-        MyEmbed.add_field(name = "/rank", value = "This comand allows you to view your level!", inline = False)
+        FunEmbed = discord.Embed(title = "Fun Commands", description = "These are the bot's Fun commands", color = discord.Colour.orange())
+        FunEmbed.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
+        FunEmbed.add_field(name = "Fun Commands", value = "Some Fun Bot Commands", inline = False)
+        FunEmbed.add_field(name = "/ping", value = "The bot replies with Pong!", inline = False)
+        FunEmbed.add_field(name = "/coinflip", value = "This command lets you flip a coin", inline = False)
+        FunEmbed.add_field(name = "/rps ✌️/🤜/✋", value = "This comand allows to play a game of rock paper scissors with the bot", inline = False)
+        FunEmbed.add_field(name = "/rpsstats", value = "This comand allows you to view your RPS Stats", inline = False)
+        FunEmbed.add_field(name = "/rpsleaderboard", value = "This comand allows you to view the RPS Leaderboard", inline = False)
+        FunEmbed.add_field(name = "/dice NdN", value = "This comand allows you to roll a dice in NdN format. Example: 1d6", inline = False)
+        FunEmbed.add_field(name = "/rank", value = "This comand allows you to view your level!", inline = False)
+        FunEmbed.add_field(name = "/rewards", value = "This comand allows you to view the rewards for each level", inline = False)
+        FunEmbed.add_field(name = "/leaderboard", value = "This comand allows you to view the server's leaderboard", inline = False)
         
         #Music Commands Embed
         MusicEmbed = discord.Embed(title = "Music Commands", description = "These are the Bot's Music Commands", color = discord.Colour.orange())
@@ -304,27 +353,32 @@ class CommandHandler(commands.Cog):
         ModEmbed.add_field(name = "/moderation unban user#XXXX", value = "Unbans a user from the server!", inline = False)
         ModEmbed.add_field(name = "/moderation unmute/undeafen @user", value = "Unmutes/Undeafens a user in a Voice Channel!", inline = False)
         ModEmbed.add_field(name = "/moderation voicekick @user", value = "Kicks a user from the Voice Channel!", inline = False)
+        ModEmbed.add_field(name = "/poll minutes \"question\" \"options\"", value = "This comand allows you to start a poll", inline = False)
 
         #Bot Config Commands
         ConfigEmbed = discord.Embed(title = "Bot Config Commands", description = "These are the Bot's Config Commands", color = discord.Colour.orange())
         ConfigEmbed.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
         ConfigEmbed.add_field(name = "/config setwelcomechannel", value = "Sets the Welcome Channel!", inline = False)
         ConfigEmbed.add_field(name = "/config setlevelupchannel", value = "Sets the Level Up Channel! (Defaults to the channel where the message that triggered the level up was sent if not set)", inline = False)
+        ConfigEmbed.add_field(name = "/config settwitchnotificationchannel", value = "Sets the Channel for Twitch Notifications!", inline = False)
+        ConfigEmbed.add_field(name = "/config addstreamer", value = "Adds a Streamer for Twitch Notifications!", inline = False)
+        ConfigEmbed.add_field(name = "/config removestreamer", value = "Removes a Streamer from Twitch Notifications!", inline = False)
 
-        #Disclaimer Embed
-        DisclaimerEmbed = discord.Embed(title = "Disclaimer", description = "About the leveling system", color = discord.Colour.orange())
-        DisclaimerEmbed.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
-        DisclaimerEmbed.add_field(name = "Disclaimer", value = 'There are 4 level tiers where you can "lock" certain premissions Lvl 5, 10, 20 and 30. This bot creates roles for each tier, however you will have to manualy configure and customize them while the developer finds a better way to do it through commands or an online interface.', inline = False)
-
-        
+        #Leveling System
+        LevelingEmbed = discord.Embed(title = "Leveling System", description = "About the leveling system", color = discord.Colour.orange())
+        LevelingEmbed.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
+        LevelingEmbed.add_field(name = "Leveling System", value = "The leveling system is a system that allows users to gain XP and level up. The system is based on the amount of messages sent in a server. The more messages you send, the more XP you gain. The more XP you gain, the higher your level will be. The leveling system is enabled by default, however you can disable it by using the /slvl disable command. You can also configure the leveling system by using the /slvl command.", inline = False)
+        LevelingEmbed.add_field(name = "Leveling System Commands", value = "These are the commands for the leveling system", inline = False)
+        LevelingEmbed.add_field(name = "/slvl enable/disable", value = "Enables/Disables the leveling system", inline = False)
+        LevelingEmbed.add_field(name = "/slvl setlevelrewards", value = "Allows you to set a Role for each level", inline = False)
         #DM Creation
         await ctx.response.send_message("Check your DMs!")
         await ctx.user.create_dm()
-        await ctx.user.dm_channel.send(embed = MyEmbed)
+        await ctx.user.dm_channel.send(embed = FunEmbed)
         await ctx.user.dm_channel.send(embed = MusicEmbed) 
         await ctx.user.dm_channel.send(embed = ModEmbed)
         await ctx.user.dm_channel.send(embed = ConfigEmbed)   
-        await ctx.user.dm_channel.send(embed = DisclaimerEmbed)
+        await ctx.user.dm_channel.send(embed = LevelingEmbed)
 
     #----------------------------------------------//----------------------------------------------#
     #Group Command EditSever
@@ -401,7 +455,6 @@ class CommandHandler(commands.Cog):
     @app_commands.describe(amount = "The amount of messages to delete", day = "The day to delete from", month = "The month to delete from", year = "The year to delete from")
     @app_commands.checks.has_permissions(manage_messages = True)
     async def purge(self,ctx : discord.Interaction, amount : int, day : int = None , month : int = None, year : int = datetime.now().year):
-        await ctx.response.defer()
         if amount == "/":
             if day == None or month == None:
                 return
@@ -498,12 +551,75 @@ class CommandHandler(commands.Cog):
     async def addStreamer(self,ctx : discord.Interaction, streamer : str):
         notChannel = cursor.execute("SELECT twitch_channel_id FROM twitch_config WHERE guild_id = ?", (ctx.guild.id,)).fetchone()
 
-        if notChannel[0] is None:
+        if not notChannel:
             await ctx.response.send_message("Please set a Notification Channel first!")
         else:
             cursor.execute("INSERT INTO twitch VALUES (?,?)", (streamer, ctx.guild.id))
             database.commit()
             await ctx.response.send_message(f"Added {streamer} to the Streamers List!")
+
+    @config.command(name="removestreamer", description="Removes a Streamer from Twitch Notifications")
+    @app_commands.describe(streamer = "The streamer to remove")
+    @app_commands.checks.has_permissions(manage_guild = True)
+    async def removeStreamer(self,ctx : discord.Interaction, streamer : str):
+        cursor.execute("DELETE FROM twitch WHERE streamer = ? AND guild_id = ?", (streamer, ctx.guild.id))
+        database.commit()
+        await ctx.response.send_message(f"Removed {streamer} from the Streamers List!")         
+
+    slvl = app_commands.Group(name="slvl", description="Configure the Server Leveling System")
+
+    @slvl.command(name="enable", description="Enables the Server Leveling System")
+    @app_commands.checks.has_permissions(manage_guild = True)
+    async def enable(self,ctx : discord.Interaction):
+        cursor.execute("SELECT levelsys FROM levelsettings WHERE guild_id = ?", (ctx.guild.id,))
+        levelsys = cursor.fetchone()
+        if levelsys:
+            if levelsys[0]:
+                await ctx.response.send_message("The Leveling System is already enabled!")
+            cursor.execute("UPDATE levelsettings SET levelsys = ? WHERE guild_id = ?", (True, ctx.guild.id))
+            database.commit()
+        else:
+            cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?)", (True,0,0,ctx.guild.id))
+            database.commit() 
+            await ctx.response.send_message("Leveling System Enabled!")
+
+    @slvl.command(name="disable", description="Disables the Server Leveling System")
+    @app_commands.checks.has_permissions(manage_guild = True)
+    async def enable(self,ctx : discord.Interaction):
+        cursor.execute("SELECT levelsys FROM levelsettings WHERE guild_id = ?", (ctx.guild.id,))
+        levelsys = cursor.fetchone()
+        if levelsys:
+            if not levelsys[0]:
+                await ctx.response.send_message("The Leveling System is already enabled!")
+            cursor.execute("UPDATE levelsettings SET levelsys = ? WHERE guild_id = ?", (False, ctx.guild.id))
+            database.commit()
+        else:
+            cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?)", (False,0,0,ctx.guild.id))
+            database.commit()
+        await ctx.response.send_message("Leveling System Disabled!")
+
+    @slvl.command(name="setlevelrewards", description="Sets the Level Rewards")
+    @app_commands.describe(level = "The level to set the reward for", role = "The role to give as a reward")
+    @app_commands.checks.has_permissions(manage_messages = True)
+    async def setrole(self,ctx : discord.Interaction, level : int,*, role : discord.Role):
+        cursor.execute("SELECT levelsys FROM levelsettings WHERE guild_id = ?", (ctx.guild.id,))
+        levelsys = cursor.fetchone()
+        if levelsys and not levelsys[0]:
+            await ctx.response.send_message("The Leveling System is disabled in this server!")
+            return
+        cursor.execute("SELECT role FROM levelsettings WHERE role = ? AND guild_id = ?", (role.id ,ctx.guild.id,))
+        roleTF = cursor.fetchone()
+        cursor.execute("SELECT role FROM levelsettings WHERE levelreq = ? AND guild_id = ?", (level ,ctx.guild.id,))
+        levelTF = cursor.fetchone()
+
+        if roleTF and levelTF:
+            ctx.response.send_message("This role is already set as a reward for this level!")
+        cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?)", (True, role.id, level, ctx.guild.id))   
+        database.commit()
+
+        await ctx.response.send_message(f"Set {role.mention} as a reward for level {level}!")
+
+        
 
     #----------------------------------------------//----------------------------------------------#
     #Error Handlers

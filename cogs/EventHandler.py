@@ -9,12 +9,8 @@ import sqlite3
 database = sqlite3.connect("bot.db")
 cursor = database.cursor()
 cursor.execute("CREATE TABLE IF NOT EXISTS levels (level INT, xp INT, user INT, guild INT)")
-cursor.execute("CREATE TABLE IF NOT EXISTS roles (level INT, role_name TEXT)")
 cursor.execute("CREATE TABLE IF NOT EXISTS twitch (twitch_user TEXT, guild_id INT)")
-cursor.execute("INSERT INTO roles VALUES (?,?)", (5, "Level 5"))
-cursor.execute("INSERT INTO roles VALUES (?,?)", (10, "Level 10"))
-cursor.execute("INSERT INTO roles VALUES (?,?)", (20, "Level 20"))
-cursor.execute("INSERT INTO roles VALUES (?,?)", (30, "Level 30"))
+cursor.execute("CREATE TABLE IF NOT EXISTS levelsettings (levelsys BOOL, role INT, levelreq INT, guild_id INT)")
 database.commit()
 
 
@@ -69,12 +65,15 @@ class eventHandler(commands.Cog):
             return
         author = message.author
         guild = message.guild
-
         levelupChannelID = cursor.execute("SELECT levelup_channel_id FROM levelup WHERE guild_id = ?", (guild.id,)).fetchone()
-        
         if levelupChannelID is not None:
             levelupChannel = guild.get_channel(levelupChannelID[0])
         
+        cursor.execute("SELECT levelsys FROM levelsettings WHERE guild_id = ?", (guild.id,))
+        levelsys = cursor.fetchone()
+        if levelsys and not levelsys[0]:
+            return
+            
         xp = cursor.execute("SELECT xp FROM levels WHERE user = ? AND guild = ?", (author.id, guild.id)).fetchone()
         level = cursor.execute("SELECT level FROM levels WHERE user = ? AND guild = ?", (author.id, guild.id)).fetchone()
 
@@ -100,14 +99,31 @@ class eventHandler(commands.Cog):
                 database.commit()
         if xp >= 100:
             level += 1
+            cursor.execute("SELECT role FROM levelsettings WHERE levelreq = ? AND guild_id = ?", (level,guild.id,))
+            role = cursor.fetchone()
             cursor.execute("UPDATE levels SET level = ? WHERE user = ? AND guild = ?", (level, author.id, guild.id))
             cursor.execute("UPDATE levels SET xp = ? WHERE user = ? AND guild = ?", (0, author.id, guild.id))
             database.commit()
 
-            if level == 5 or level == 10 or level == 20 or level == 30:
-                await setLevelRole(guild, author, level)
-
-            if levelupChannelID is not None:
+            if role:
+                role = role[0]
+                role = guild.get_role(role)
+                try:
+                    await author.add_roles(role)
+                    if levelupChannelID:
+                        await levelupChannel.send(f"**{author.mention}** has leveled up to level **{level}**! They have recieved the role {role.mention}!")
+                        return
+                    else:
+                        await message.channel.send(f"**{author.mention}** has leveled up to level **{level}**! They have recieved the role {role.mention}!")
+                        return
+                except discord.HTTPException:
+                    if levelupChannelID:
+                        await levelupChannel.send(f"**{author.mention}** has leveled up to level **{level}**! They would have recieved the role {role.mention}, but I don't have the permissions to do so.")
+                        return
+                    else:
+                        await message.channel.send(f"**{author.mention}** has leveled up to level **{level}**! They would have recieved the role {role.mention}, but I don't have the permissions to do so.")
+                        return
+            if levelupChannelID:
                 await levelupChannel.send(f"{author.mention} has leveled up to level **{level}**!")
             else:
                 await message.channel.send(f"{author.mention} has leveled up to level **{level}**!")
@@ -143,27 +159,6 @@ class eventHandler(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(eventHandler(bot))
-
-async def setLevelRole(guild, author, level):
-        role_name = cursor.execute("SELECT role_name FROM roles WHERE level = ?", (level,)).fetchone()
-        if role_name is not None:
-            if discord.utils.get(guild.roles,name=role_name[0]) is None:
-                roles = cursor.execute("SELECT role_name FROM roles",).fetchall()
-                for role in roles:
-                    if discord.utils.get(guild.roles,name=role[0]) is None:
-                        await guild.create_role(name=role[0], mentionable=False)
-                role = discord.utils.get(guild.roles,name=role_name[0])
-            else:
-                role = discord.utils.get(guild.roles,name=role_name[0])
-            
-            if role is not None:
-                if any(role.name == "Level 5" for role in author.roles):
-                    await author.remove_roles(discord.utils.get(guild.roles,name="Level 5"))
-                if any(role.name == f"Level {level-10}" for role in author.roles):
-                    await author.remove_roles(discord.utils.get(guild.roles,name=f"Level {level-10}"))
-
-                await author.add_roles(role)
-                return
 
 #*Returns true if online, false if not.
 async def checkuser(user):

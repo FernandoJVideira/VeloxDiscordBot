@@ -9,7 +9,7 @@ class MyBot(commands.Bot):
             command_prefix=".ds ",
             help_command=None,
             intents=discord.Intents.all(),
-            application_id=1169299903378378772)
+            application_id=os.getenv("APPLICATION_ID"))
 
     async def setup_hook(self):
         for extention in ["cogs.MusicBot", "cogs.EventHandler", "cogs.CommandHandler"]:

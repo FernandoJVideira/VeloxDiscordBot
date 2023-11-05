@@ -15,7 +15,7 @@ class Music(commands.Cog):
         await self.bot.wait_until_ready()
 
         node: wavelink.Node = wavelink.Node(
-            uri='lavalink-server--03pleaser-minst.repl.co:443', password='youshallnotpass', secure=True)
+            uri='lavalink:2333', password='<Password Here>', secure=False)
         await wavelink.NodePool.connect(client=self.bot, nodes=[node])
         
     @commands.Cog.listener()
@@ -41,45 +41,46 @@ class Music(commands.Cog):
     @app_commands.describe(search="The song you want to play.")
     @app_commands.checks.has_role("DJ")
     async def play(self, ctx: discord.Interaction, search: str):
-        #Verify if the user is in a voice channel
-        if not ctx.user.voice:
-            await ctx.response.send_message("You must be in a voice channel to use this command.")
-            return
-        elif ctx.guild.voice_client and ctx.guild.voice_client.channel != ctx.user.voice.channel:
-            await ctx.response.send_message("You must be in the same voice channel as the bot.")
-            return
         
-        #Verify if the bot is in a voice channel and connect if not
-        elif not ctx.guild.voice_client:
-            vc: wavelink.Player = await ctx.user.voice.channel.connect(cls=wavelink.Player, self_deaf=True)
-        else:
-            vc: wavelink.Player = ctx.guild.voice_client
+            #Verify if the user is in a voice channel
+            if not ctx.user.voice:
+                await ctx.response.send_message("You must be in a voice channel to use this command.")
+                return
+            elif ctx.guild.voice_client and ctx.guild.voice_client.channel != ctx.user.voice.channel:
+                await ctx.response.send_message("You must be in the same voice channel as the bot.")
+                return
+            
+            #Verify if the bot is in a voice channel and connect if not
+            elif not ctx.guild.voice_client:
+                vc: wavelink.Player = await ctx.user.voice.channel.connect(cls=wavelink.Player, self_deaf=True)
+            else:
+                vc: wavelink.Player = ctx.guild.voice_client
 
-        #Search for the song
-        tracks = await wavelink.YouTubeTrack.search(search)
-        if not tracks:
-            await ctx.response.send_message(f'No tracks found with query: `{search}`')
-            return
-        track = tracks[0]
+            #Search for the song
+            tracks = await wavelink.YouTubeTrack.search(search)
+            if not tracks:
+                await ctx.response.send_message(f'No tracks found with query: `{search}`')
+                return
+            track = tracks[0]
 
-        #Play the song
-        if not vc.is_playing():
-            musicEmbed = discord.Embed(title="Now Playing", description=f"{track.title}", color=discord.Color.orange())
-            thumbURL = await track.fetch_thumbnail()
-            musicEmbed.set_thumbnail(url=thumbURL)
-            musicEmbed.add_field(name="Duration", value=str(datetime.timedelta(milliseconds=track.duration)))
-            musicEmbed.add_field(name="Requested by", value=ctx.user.mention)
-            await ctx.response.send_message(embed=musicEmbed)
-            await vc.play(track)
-            return
-        else:
-            await vc.queue.put_wait(track)
-            queueEmbed = discord.Embed(title="Added to queue", description=f"{track.title}", color=discord.Color.orange())
-            thumbURL = await track.fetch_thumbnail()
-            queueEmbed.set_thumbnail(url=thumbURL)
-            queueEmbed.add_field(name="Duration", value=str(datetime.timedelta(milliseconds=track.duration)))
-            queueEmbed.add_field(name="Requested by", value=ctx.user.mention)
-            await ctx.response.send_message(embed=queueEmbed)
+            #Play the song
+            if not vc.is_playing():
+                musicEmbed = discord.Embed(title="Now Playing", description=f"{track.title}", color=discord.Color.orange())
+                thumbURL = await track.fetch_thumbnail()
+                musicEmbed.set_thumbnail(url=thumbURL)
+                musicEmbed.add_field(name="Duration", value=str(datetime.timedelta(milliseconds=track.duration)))
+                musicEmbed.add_field(name="Requested by", value=ctx.user.mention)
+                await ctx.response.send_message(embed=musicEmbed)
+                await vc.play(track)
+                return
+            else:
+                await vc.queue.put_wait(track)
+                queueEmbed = discord.Embed(title="Added to queue", description=f"{track.title}", color=discord.Color.orange())
+                thumbURL = await track.fetch_thumbnail()
+                queueEmbed.set_thumbnail(url=thumbURL)
+                queueEmbed.add_field(name="Duration", value=str(datetime.timedelta(milliseconds=track.duration)))
+                queueEmbed.add_field(name="Requested by", value=ctx.user.mention)
+                await ctx.response.send_message(embed=queueEmbed)
 
  
     @app_commands.command(name="pause", description="Pause the current song.")
