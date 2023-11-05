@@ -12,7 +12,7 @@ class MyBot(commands.Bot):
             application_id=os.getenv("APPLICATION_ID"))
 
     async def setup_hook(self):
-        for extention in ["cogs.MusicBot", "cogs.EventHandler", "cogs.CommandHandler"]:
+        for extention in ["cogs.MusicBot","cogs.EventHandler", "cogs.CommandHandler"]:
             await bot.load_extension(extention)
         await self.tree.sync()
 

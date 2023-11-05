@@ -32,21 +32,28 @@ class CommandHandler(commands.Cog):
         if num == 2:
             await ctx.response.send_message("Tails!")
 
-    @app_commands.command(name = "dice", description="Rolls a dice in NdN format. Example: 1d6")
-    @app_commands.describe(dice = "The dice to roll in NdN format. Example: 1d6")
+    @app_commands.command(name = "dice", description="Rolls a dice in NdN + M format. Example: 1d6")
+    @app_commands.describe(dice = "The dice to roll in NdN format. Example: 1d6+2")
     async def dice(self, ctx : discord.Interaction, dice: str):
-        """Rolls a dice in NdN format."""
+        """Rolls a dice in NdN + M format."""
         try:
-            rolls, limit = map(int, dice.split('d'))
+            # Split the input string by '+'
+            parts = dice.split('+')
+
+            # If there's a modifier, parse it
+            modifier = int(parts[1]) if len(parts) > 1 else 0
+
+            # Split the first part by 'd' to get the number of rolls and the limit
+            rolls, limit = map(int, parts[0].split('d'))
         except Exception:
-            await ctx.response.send_message('Format has to be in NdN!')
+            await ctx.response.send_message('Format has to be in NdN+M!')
             return
 
-        result = ', '.join(str(random.randint(1, limit)) for r in range(rolls))
+        result = ', '.join(str(random.randint(1, limit) + modifier) for r in range(rolls))
         await ctx.response.send_message(result)
 
     @app_commands.command(name="poll", description="Starts a Poll!")
-    @app_commands.describe(title = "The question to ask, has to be in quotation marks", options = 'The options to choose from in the format "Option1 Option2 Option3"')
+    @app_commands.describe(title = "The question to ask, has to be in quotation marks", options = 'The options to choose from in the format "Option1 Option2 Option3 (or - for yes/no)"')
     @app_commands.checks.has_permissions(manage_messages = True)
     async def poll(self, ctx : discord.Interaction, minutes : int, title: str, options : str):
         options = options.split()
@@ -64,7 +71,7 @@ class CommandHandler(commands.Cog):
             for x in range(len(pollEmbed.fields)):
                 await msg.add_reaction(self.numbers[x])
 
-        self.poll_loop.start(ctx, minutes, title, options, msg)
+        self.loop.start(ctx, minutes, title, options, msg)
 
     @tasks.loop(minutes = 1)
     async def poll_loop(self, ctx, minutes, title, options, msg):
@@ -581,7 +588,7 @@ class CommandHandler(commands.Cog):
         else:
             cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?)", (True,0,0,ctx.guild.id))
             database.commit() 
-            await ctx.response.send_message("Leveling System Enabled!")
+        await ctx.response.send_message("Leveling System Enabled!")
 
     @slvl.command(name="disable", description="Disables the Server Leveling System")
     @app_commands.checks.has_permissions(manage_guild = True)
@@ -618,8 +625,6 @@ class CommandHandler(commands.Cog):
         database.commit()
 
         await ctx.response.send_message(f"Set {role.mention} as a reward for level {level}!")
-
-        
 
     #----------------------------------------------//----------------------------------------------#
     #Error Handlers

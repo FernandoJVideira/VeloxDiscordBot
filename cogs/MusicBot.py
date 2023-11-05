@@ -118,21 +118,6 @@ class Music(commands.Cog):
         await vc.stop(force=True)
         await ctx.response.send_message("Skipped the current song.")
 
-    @app_commands.command(name="setvolume", description="Sets the bot volume.")
-    @app_commands.describe(volume="The volume you want to set.")
-    @app_commands.checks.has_role("DJ")
-    async def setvolume(self, ctx: discord.Interaction, volume: int):
-        vc: wavelink.Player = ctx.guild.voice_client
-        if not vc or not vc.is_playing():
-            await ctx.response.send_message("I am not playing anything.")
-            return
-        elif volume < 0 or volume > 1000:
-            await ctx.response.send_message("The volume must be between 0 and 1000.")
-            return
-
-        await vc.set_volume(volume)
-        await ctx.response.send_message(f"Set the volume to {volume}.")
-
     @app_commands.command(name="queue", description="Shows the current queue.")
     async def queue(self, ctx: discord.Interaction):
         vc: wavelink.Player = ctx.guild.voice_client
