@@ -14,30 +14,16 @@ class Music(commands.Cog):
 
     async def setup_hook(self):
         await self.bot.wait_until_ready()
-
         node: wavelink.Node = wavelink.Node(
             uri='lavalink:2333', password=os.getenv('LAVALINK_PASSWORD'), secure=False)
+        # node: wavelink.Node = wavelink.Node(
+        #     uri='https://lavalink-server.03pleaser-minst.repl.co', password='youshallnotpass', secure=True)
         await wavelink.NodePool.connect(client=self.bot, nodes=[node])
         
     @commands.Cog.listener()
     async def on_wavelink_node_ready(self, node: wavelink.Node):
         print(f"Node {node.id} is ready.")
-
-    @commands.Cog.listener()
-    async def on_wavelink_track_end(self, payload: TrackEventPayload):
-        player : Player = payload.player
-
-        if player.queue.loop:
-            return await player.play(payload.track)
-
-        if player.queue.is_empty:
-            await player.disconnect()
-            return
-        else:
-            next_song = player.queue.get()
-            await player.play(next_song)
         
-
     @app_commands.command(name="play", description="Play a song in your voice channel.")
     @app_commands.describe(search="The song you want to play.")
     @app_commands.checks.has_role("DJ")
@@ -57,23 +43,39 @@ class Music(commands.Cog):
             else:
                 vc: wavelink.Player = ctx.guild.voice_client
 
-            #Search for the song
-            tracks = await wavelink.YouTubeTrack.search(search)
-            if not tracks:
-                await ctx.response.send_message(f'No tracks found with query: `{search}`')
-                return
-            track = tracks[0]
+            if "playlist" in search:
+                track = await wavelink.YouTubePlaylist.search(search)
+                if not track:
+                    await ctx.response.send_message(f'No tracks found with query: `{search}`')
+                    return
+                musicEmbed = discord.Embed(title="Now Playing", description=f"{track.name}", color=discord.Color.orange())
+                musicEmbed.add_field(name="Requested by", value=ctx.user.mention)
 
-            #Play the song
-            if not vc.is_playing():
+            else:
+                #Search for the song
+                track = await wavelink.YouTubeTrack.search(search)
+                if not track:
+                    await ctx.response.send_message(f'No tracks found with query: `{search}`')
+                    return
+                track = track[0]
                 musicEmbed = discord.Embed(title="Now Playing", description=f"{track.title}", color=discord.Color.orange())
                 thumbURL = await track.fetch_thumbnail()
                 musicEmbed.set_thumbnail(url=thumbURL)
                 musicEmbed.add_field(name="Duration", value=str(datetime.timedelta(milliseconds=track.duration)))
                 musicEmbed.add_field(name="Requested by", value=ctx.user.mention)
+
+            #Play the song
+            if not vc.is_playing():
                 await ctx.response.send_message(embed=musicEmbed)
-                await vc.play(track)
-                return
+                vc.autoplay = True
+                if "playlist" in search:
+                    first_song = track.tracks[0]
+                    await vc.play(first_song, populate=False)
+                    for song in track.tracks[1:]:
+                        await vc.queue.put_wait(song)
+                elif isinstance(track, wavelink.YouTubeTrack):
+                    await vc.play(track, populate=False)
+                    return
             else:
                 await vc.queue.put_wait(track)
                 queueEmbed = discord.Embed(title="Added to queue", description=f"{track.title}", color=discord.Color.orange())
@@ -116,11 +118,27 @@ class Music(commands.Cog):
             return
 
         await vc.stop(force=True)
-        await ctx.response.send_message("Skipped the current song.")
+        if vc.queue.is_empty:
+            vc.autoplay = False
+            await ctx.response.send_message("Skipped the current song. The queue is empty.")
+        else:
+            await ctx.response.send_message("Skipped the current song.")
 
     @app_commands.command(name="queue", description="Shows the current queue.")
     async def queue(self, ctx: discord.Interaction):
         vc: wavelink.Player = ctx.guild.voice_client
+
+        if not vc or not vc.is_playing():
+            await ctx.response.send_message("I am not playing anything.")
+            return
+        #Verify if the user is in a voice channel
+        elif not ctx.user.voice:
+            await ctx.response.send_message("You must be in a voice channel to use this command.")
+            return
+        elif ctx.guild.voice_client and ctx.guild.voice_client.channel != ctx.user.voice.channel:
+            await ctx.response.send_message("You must be in the same voice channel as the bot.")
+            return
+        
         if not vc.queue.is_empty:
             songCounter = 0
             songs = []
@@ -205,6 +223,7 @@ class Music(commands.Cog):
     @queue.error
     async def queue_error(self, ctx: discord.Interaction, error):
         await ctx.response.send_message("An unknown error occured.")
+        print(error.args)
 
     @disconnect.error
     async def disconnect_error(self, ctx: discord.Interaction, error):
