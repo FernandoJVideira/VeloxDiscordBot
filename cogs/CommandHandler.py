@@ -13,6 +13,7 @@ cursor.execute("CREATE TABLE IF NOT EXISTS welcome (guild_id INT, welcome_channe
 cursor.execute("CREATE TABLE IF NOT EXISTS levelup (guild_id INT, levelup_channel_id INT)")
 cursor.execute("CREATE TABLE IF NOT EXISTS twitch_config (guild_id INT, twitch_channel_id INT)")
 cursor.execute("CREATE TABLE IF NOT EXISTS rps (guild_id INT, user_id INT, score INT)")
+cursor.execute("CREATE TABLE IF NOT EXISTS defaultrole (guild_id INT, role_id INT)")
 class CommandHandler(commands.Cog):
     
     def __init__(self, bot):
@@ -204,7 +205,8 @@ class CommandHandler(commands.Cog):
         cursor.execute("SELECT level, xp, user FROM levels WHERE guild = ? ORDER BY level DESC, xp DESC LIMIT 10", (ctx.guild.id,))
         data = cursor.fetchall()
         if data:
-            em = discord.Embed(title = "Leaderboard", description = "These are the top 10 users in the server", color = discord.Colour.orange())
+            users = len(data)
+            em = discord.Embed(title = "Leaderboard", description = f"These are the top {users} users in the server", color = discord.Colour.orange())
             count = 0
             for table in data:
                 count += 1
@@ -370,6 +372,7 @@ class CommandHandler(commands.Cog):
         ConfigEmbed.add_field(name = "/config settwitchnotificationchannel", value = "Sets the Channel for Twitch Notifications!", inline = False)
         ConfigEmbed.add_field(name = "/config addstreamer", value = "Adds a Streamer for Twitch Notifications!", inline = False)
         ConfigEmbed.add_field(name = "/config removestreamer", value = "Removes a Streamer from Twitch Notifications!", inline = False)
+        ConfigEmbed.add_field(name = "/config setdefaultrole", value = "Sets the Default Role for new members!", inline = False)
 
         #Leveling System
         LevelingEmbed = discord.Embed(title = "Leveling System", description = "About the leveling system", color = discord.Colour.orange())
@@ -378,6 +381,9 @@ class CommandHandler(commands.Cog):
         LevelingEmbed.add_field(name = "Leveling System Commands", value = "These are the commands for the leveling system", inline = False)
         LevelingEmbed.add_field(name = "/slvl enable/disable", value = "Enables/Disables the leveling system", inline = False)
         LevelingEmbed.add_field(name = "/slvl setlevelrewards", value = "Allows you to set a Role for each level", inline = False)
+        LevelingEmbed.add_field(name = "/slvl setlevelupchannel", value = "Allows you to set the Level Up Channel", inline = False)
+        LevelingEmbed.add_field(name = "/slvl setlevelupmessage", value = "Allows you to set the Level Up Message", inline = False)
+        LevelingEmbed.add_field(name = "/slvl resetlevelupmessage", value = "Allows you to reset the levelup message", inline = False)
         #DM Creation
         await ctx.response.send_message("Check your DMs!")
         await ctx.user.create_dm()
@@ -526,6 +532,13 @@ class CommandHandler(commands.Cog):
             database.commit()
         await ctx.response.send_message(f"Welcome Channel set to {channel.mention}")
 
+    @config.command(name="removewelcomechannel", description="Removes the Channel set for Welcome Messages")
+    @app_commands.checks.has_permissions(manage_guild = True)
+    async def removeWelcomeChannel(self,ctx : discord.Interaction):
+        cursor.execute("DELETE FROM welcome WHERE guild_id = ?", (ctx.guild.id,))
+        database.commit()
+        await ctx.response.send_message(f"Removed the Welcome Channel!")
+
     @config.command(name="setlevelupchannel", description="Sets the Level Up Channel")
     @app_commands.describe(channel = "The channel to set as the Level Up Channel")
     @app_commands.checks.has_permissions(manage_guild = True)
@@ -539,6 +552,15 @@ class CommandHandler(commands.Cog):
             database.commit()
         await ctx.response.send_message(f"Level Up Channel set to {channel.mention}")
 
+    @config.command(name="removelevelupchannel", description="Removes the Channel set for Level Up Notifications")
+    @app_commands.checks.has_permissions(manage_guild = True)
+    async def removeStreamChannel(self,ctx : discord.Interaction):
+        cursor.execute("DELETE FROM levelup WHERE guild_id = ?", (ctx.guild.id,))
+        database.commit()
+        await ctx.response.send_message(f"Removed the Level Up Channel!")
+
+    
+
     @config.command(name="settwitchnotificationchannel", description="Sets the Channel for Twitch Notifications")
     @app_commands.describe(channel = "The channel to set as the Notification Channel")
     @app_commands.checks.has_permissions(manage_guild = True)
@@ -548,9 +570,16 @@ class CommandHandler(commands.Cog):
             cursor.execute("INSERT INTO twitch_config VALUES (?,?)", (ctx.guild.id, channel.id))
             database.commit()
         else:
-            cursor.execute("UPDATE twitch_config SET welcome_channel_id = ? WHERE guild_id = ?", (channel.id, ctx.guild.id))
+            cursor.execute("UPDATE twitch_config SET twitch_channel_id = ? WHERE guild_id = ?", (channel.id, ctx.guild.id))
             database.commit()
         await ctx.response.send_message(f"Notification Channel set to {channel.mention}")
+    
+    @config.command(name="removestreamchannel", description="Removes the Channel set for Twitch Notifications")
+    @app_commands.checks.has_permissions(manage_guild = True)
+    async def removeStreamChannel(self,ctx : discord.Interaction):
+        cursor.execute("DELETE FROM twitch_config WHERE guild_id = ?", (ctx.guild.id,))
+        database.commit()
+        await ctx.response.send_message(f"Removed the Notification Channel!")
 
     @config.command(name="addstreamer", description="Adds a Streamer for Twitch Notifications")
     @app_commands.describe(streamer = "The streamer to add")
@@ -569,9 +598,23 @@ class CommandHandler(commands.Cog):
     @app_commands.describe(streamer = "The streamer to remove")
     @app_commands.checks.has_permissions(manage_guild = True)
     async def removeStreamer(self,ctx : discord.Interaction, streamer : str):
-        cursor.execute("DELETE FROM twitch WHERE streamer = ? AND guild_id = ?", (streamer, ctx.guild.id))
+        cursor.execute("DELETE FROM twitch WHERE twitch_user = ? AND guild_id = ?", (streamer, ctx.guild.id))
         database.commit()
-        await ctx.response.send_message(f"Removed {streamer} from the Streamers List!")         
+        await ctx.response.send_message(f"Removed {streamer} from the Streamers List!")     
+
+    @config.command(name="setdefaultrole", description="Sets the Default Role when a user joins the server")
+    @app_commands.describe(role = "The role to set as the Default Role")
+    @app_commands.checks.has_permissions(manage_guild = True)
+    async def setDefaultRole(self,ctx : discord.Interaction, role : discord.Role):
+        cursor.execute("SELECT * FROM defaultrole WHERE guild_id = ?", (ctx.guild.id,))
+        dbRole = cursor.fetchone()
+        if dbRole is None:
+            cursor.execute("INSERT INTO defaultrole VALUES (?,?)", (ctx.guild.id, role.id))
+            database.commit()
+        else:
+            cursor.execute("UPDATE defaultrole SET default_role_id = ? WHERE guild_id = ?", (role.id, ctx.guild.id))
+            database.commit()
+        await ctx.response.send_message(f"Default Role set to {role.mention}")    
 
     slvl = app_commands.Group(name="slvl", description="Configure the Server Leveling System")
 
@@ -586,7 +629,7 @@ class CommandHandler(commands.Cog):
             cursor.execute("UPDATE levelsettings SET levelsys = ? WHERE guild_id = ?", (True, ctx.guild.id))
             database.commit()
         else:
-            cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?)", (True,0,0,ctx.guild.id))
+            cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?,?)", (True,0,0,None,ctx.guild.id))
             database.commit() 
         await ctx.response.send_message("Leveling System Enabled!")
 
@@ -601,13 +644,13 @@ class CommandHandler(commands.Cog):
             cursor.execute("UPDATE levelsettings SET levelsys = ? WHERE guild_id = ?", (False, ctx.guild.id))
             database.commit()
         else:
-            cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?)", (False,0,0,ctx.guild.id))
+            cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?,?)", (False,0,0,None,ctx.guild.id))
             database.commit()
         await ctx.response.send_message("Leveling System Disabled!")
 
     @slvl.command(name="setlevelrewards", description="Sets the Level Rewards")
     @app_commands.describe(level = "The level to set the reward for", role = "The role to give as a reward")
-    @app_commands.checks.has_permissions(manage_messages = True)
+    @app_commands.checks.has_permissions(manage_guild = True)
     async def setrole(self,ctx : discord.Interaction, level : int,*, role : discord.Role):
         cursor.execute("SELECT levelsys FROM levelsettings WHERE guild_id = ?", (ctx.guild.id,))
         levelsys = cursor.fetchone()
@@ -625,6 +668,52 @@ class CommandHandler(commands.Cog):
         database.commit()
 
         await ctx.response.send_message(f"Set {role.mention} as a reward for level {level}!")
+    
+    @slvl.command(name="removereward", description="Removes a Level Reward")
+    @app_commands.describe(level = "The level to remove the reward from")
+    @app_commands.checks.has_permissions(manage_guild = True)
+    async def removereward(self,ctx : discord.Interaction, level : int):
+        cursor.execute("SELECT levelsys FROM levelsettings WHERE guild_id = ?", (ctx.guild.id,))
+        levelsys = cursor.fetchone()
+        if levelsys and not levelsys[0]:
+            await ctx.response.send_message("The Leveling System is disabled in this server!")
+            return
+        cursor.execute("DELETE FROM levelsettings WHERE levelreq = ? AND guild_id = ?", (level ,ctx.guild.id,))
+        database.commit()
+        await ctx.response.send_message(f"Removed the reward for level {level}!")
+
+    @slvl.command(name="setlvlupmessage", description="Sets the Level Up Message")
+    @app_commands.describe(message = " {user} is the user that leveled up and {level} is the level the user leveled up to")
+    @app_commands.checks.has_permissions(manage_guild = True)
+    async def setlvlupmessage(self,ctx : discord.Interaction,*, message : str):
+        cursor.execute("SELECT levelsys FROM levelsettings WHERE guild_id = ?", (ctx.guild.id,))
+        levelsys = cursor.fetchone()
+        if levelsys and not levelsys[0]:
+            await ctx.response.send_message("The Leveling System is disabled in this server!")
+            return
+        cursor.execute("SELECT message FROM levelsettings WHERE guild_id = ?", (ctx.guild.id,))
+        lvlupmessage = cursor.fetchone()
+        if lvlupmessage:
+            cursor.execute("UPDATE levelsettings SET message = ? WHERE guild_id = ?", (message, ctx.guild.id))
+            database.commit()
+        else:
+            cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?,?)", (True,0,0,message,ctx.guild.id))
+            database.commit()
+
+        await ctx.response.send_message(f"Level Up Message set!")
+    
+    @slvl.command(name="resetlvlupmessage", description="Resets the Level Up Message")
+    @app_commands.checks.has_permissions(manage_guild = True)
+    async def resetlvlupmessage(self,ctx : discord.Interaction):
+        cursor.execute("SELECT levelsys FROM levelsettings WHERE guild_id = ?", (ctx.guild.id,))
+        levelsys = cursor.fetchone()
+        if levelsys and not levelsys[0]:
+            await ctx.response.send_message("The Leveling System is disabled in this server!")
+            return
+        cursor.execute("UPDATE levelsettings SET message = ? WHERE guild_id = ?", (None, ctx.guild.id))
+        database.commit()
+        await ctx.response.send_message(f"Level Up Message reset!")
+
 
     #----------------------------------------------//----------------------------------------------#
     #Error Handlers

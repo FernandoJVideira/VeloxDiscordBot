@@ -10,7 +10,7 @@ database = sqlite3.connect("bot.db")
 cursor = database.cursor()
 cursor.execute("CREATE TABLE IF NOT EXISTS levels (level INT, xp INT, user INT, guild INT)")
 cursor.execute("CREATE TABLE IF NOT EXISTS twitch (twitch_user TEXT, guild_id INT)")
-cursor.execute("CREATE TABLE IF NOT EXISTS levelsettings (levelsys BOOL, role INT, levelreq INT, guild_id INT)")
+cursor.execute("CREATE TABLE IF NOT EXISTS levelsettings (levelsys BOOL, role INT, levelreq INT, message TEXT ,guild_id INT)")
 database.commit()
 
 
@@ -39,13 +39,27 @@ class eventHandler(commands.Cog):
     async def on_member_join(self, member):
         guild = member.guild
 
-        guildchannelID = cursor.execute("SELECT welcome_channel_id FROM welcome WHERE guild_id = ?", (guild.id,)).fetchone()
-        guildchannel = guild.get_channel(guildchannelID[0])
+        cursor.execute("SELECT welcome_channel_id FROM welcome WHERE guild_id = ?", (guild.id,))
+        guildchannelID = cursor.fetchone()
+        if guildchannelID:
+            guildchannel = guild.get_channel(guildchannelID[0])
+        else:
+            guildchannel = None
+
+        cursor.execute("SELECT role_id FROM defaultrole WHERE guild_id = ?", (guild.id,))
+        defaultrole = cursor.fetchone()
+
+        if defaultrole:
+            defaultrole = guild.get_role(defaultrole[0])
+            try:
+                await member.add_roles(defaultrole)
+            except discord.HTTPException:
+                print("I don't have the permissions to add the default role.")
 
         dmchannel = await member.create_dm()
         await dmchannel.send(f"Welcome to **{guild.name}**! Have fun!")
 
-        if guildchannel is not None:
+        if guildchannel:
             # Welcome Embed
             MyEmbed = discord.Embed(
                 title="👋 Welcomeee!", description=f"{member.mention}! Welcome to the Shit Showww!", color=discord.Colour.orange())
@@ -104,6 +118,16 @@ class eventHandler(commands.Cog):
             cursor.execute("UPDATE levels SET level = ? WHERE user = ? AND guild = ?", (level, author.id, guild.id))
             cursor.execute("UPDATE levels SET xp = ? WHERE user = ? AND guild = ?", (0, author.id, guild.id))
             database.commit()
+            
+            cursor.execute("SELECT message FROM levelsettings WHERE guild_id = ?", (guild.id,))
+            template = cursor.fetchone()
+            print(template)
+
+            if not template:
+                msg = f"Congratulations {author.mention}, you have leveled up to level {level}!"
+            else:
+                template = template[0]
+                msg = template.format(user=author.mention, level=level)
 
             if role:
                 role = role[0]
@@ -111,10 +135,10 @@ class eventHandler(commands.Cog):
                 try:
                     await author.add_roles(role)
                     if levelupChannelID:
-                        await levelupChannel.send(f"**{author.mention}** has leveled up to level **{level}**! They have recieved the role {role.mention}!")
+                        await levelupChannel.send(msg + f" You have recieved the role {role.mention}!")
                         return
                     else:
-                        await message.channel.send(f"**{author.mention}** has leveled up to level **{level}**! They have recieved the role {role.mention}!")
+                        await message.channel.send(msg + f" You have recieved the role {role.mention}!")
                         return
                 except discord.HTTPException:
                     if levelupChannelID:
@@ -124,9 +148,9 @@ class eventHandler(commands.Cog):
                         await message.channel.send(f"**{author.mention}** has leveled up to level **{level}**! They would have recieved the role {role.mention}, but I don't have the permissions to do so.")
                         return
             if levelupChannelID:
-                await levelupChannel.send(f"{author.mention} has leveled up to level **{level}**!")
+                await levelupChannel.send(msg)
             else:
-                await message.channel.send(f"{author.mention} has leveled up to level **{level}**!")
+                await message.channel.send(msg)
         await self.bot.process_commands(message)
 
 
@@ -140,10 +164,10 @@ class eventHandler(commands.Cog):
                 channel = self.bot.get_channel(channel[0])
 
                 twitch_users = cursor.execute("SELECT twitch_user FROM twitch WHERE guild_id = ?", (guild_id[0],)).fetchall()
+                sent_notification = False
 
                 for twitch_user in twitch_users:
                     status = await checkuser(twitch_user[0])
-                    print(status)
                     if status is True:
                         async for message in channel.history(limit=200):
                             sent_notification = False

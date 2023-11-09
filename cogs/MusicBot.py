@@ -1,8 +1,9 @@
 import datetime
 import os
 import discord
+import time
 import wavelink
-from wavelink import TrackEventPayload, Player
+from wavelink import TrackEventPayload
 from discord.ext import commands
 from discord import app_commands
 
@@ -23,6 +24,18 @@ class Music(commands.Cog):
     @commands.Cog.listener()
     async def on_wavelink_node_ready(self, node: wavelink.Node):
         print(f"Node {node.id} is ready.")
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_end(self, payload: TrackEventPayload):
+        vc = payload.player
+
+        if vc.queue.is_empty:
+            vc.auto_queue.clear()
+            vc.autoplay = False
+            time.sleep(30)
+            vc.disconnect()
+            return
+        
         
     @app_commands.command(name="play", description="Play a song in your voice channel.")
     @app_commands.describe(search="The song you want to play.")
@@ -68,7 +81,7 @@ class Music(commands.Cog):
             if not vc.is_playing():
                 await ctx.response.send_message(embed=musicEmbed)
                 vc.autoplay = True
-                if "playlist" in search:
+                if "playlist" in search and isinstance(track, wavelink.YouTubePlaylist):
                     first_song = track.tracks[0]
                     await vc.play(first_song, populate=False)
                     for song in track.tracks[1:]:
@@ -153,6 +166,17 @@ class Music(commands.Cog):
             await ctx.response.send_message(embed=embed)
         else:
             await ctx.response.send_message("The queue is empty.")
+    
+    @app_commands.command(name="clear", description="Clears the current queue.")
+    @app_commands.checks.has_role("DJ")
+    async def clear(self, ctx: discord.Interaction):
+        vc: wavelink.Player = ctx.guild.voice_client
+        if not vc or not vc.is_playing():
+            await ctx.response.send_message("I am not playing anything.")
+            return
+
+        vc.queue.clear()
+        await ctx.response.send_message("Cleared the queue.")
 
 
     @app_commands.command(name="disconnect", description="Disconnects the bot from the voice channel.")
