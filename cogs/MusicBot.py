@@ -17,8 +17,6 @@ class Music(commands.Cog):
         await self.bot.wait_until_ready()
         node: wavelink.Node = wavelink.Node(
             uri='lavalink:2333', password=os.getenv('LAVALINK_PASSWORD'), secure=False)
-        # node: wavelink.Node = wavelink.Node(
-        #     uri='https://lavalink-server.03pleaser-minst.repl.co', password='youshallnotpass', secure=True)
         await wavelink.NodePool.connect(client=self.bot, nodes=[node])
         
     @commands.Cog.listener()
@@ -78,7 +76,7 @@ class Music(commands.Cog):
                 musicEmbed.add_field(name="Requested by", value=ctx.user.mention)
 
             #Play the song
-            if not vc.is_playing():
+            if not vc.is_playing() or not vc.is_paused():
                 await ctx.response.send_message(embed=musicEmbed)
                 vc.autoplay = True
                 if "playlist" in search and isinstance(track, wavelink.YouTubePlaylist):
@@ -161,7 +159,7 @@ class Music(commands.Cog):
             for song in queue:
                 songCounter += 1
                 songs.append(f"{songCounter}. {song.title}")
-                embed.add_field(name=f"{songCounter} -  Duration {str(datetime.timedelta(milliseconds=song.duration))}", value=f"{song.title}", inline=False)
+                embed.add_field(name=f"{songCounter} - {song.title}", value=f"Duration: {str(datetime.timedelta(milliseconds=song.duration))}", inline=False)
 
             await ctx.response.send_message(embed=embed)
         else:
