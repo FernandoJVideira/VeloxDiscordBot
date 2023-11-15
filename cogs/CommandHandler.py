@@ -14,6 +14,7 @@ cursor.execute("CREATE TABLE IF NOT EXISTS levelup (guild_id INT, levelup_channe
 cursor.execute("CREATE TABLE IF NOT EXISTS twitch_config (guild_id INT, twitch_channel_id INT)")
 cursor.execute("CREATE TABLE IF NOT EXISTS rps (guild_id INT, user_id INT, score INT)")
 cursor.execute("CREATE TABLE IF NOT EXISTS defaultrole (guild_id INT, role_id INT)")
+
 class CommandHandler(commands.Cog):
     
     def __init__(self, bot):
@@ -590,7 +591,7 @@ class CommandHandler(commands.Cog):
         if not notChannel:
             await ctx.response.send_message("Please set a Notification Channel first!")
         else:
-            cursor.execute("INSERT INTO twitch VALUES (?,?)", (streamer, ctx.guild.id))
+            cursor.execute("INSERT INTO twitch VALUES (?,?,?)", (streamer,"not live", ctx.guild.id))
             database.commit()
             await ctx.response.send_message(f"Added {streamer} to the Streamers List!")
 
