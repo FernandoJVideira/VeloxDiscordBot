@@ -9,7 +9,7 @@ import sqlite3
 database = sqlite3.connect("bot.db")
 cursor = database.cursor()
 cursor.execute("CREATE TABLE IF NOT EXISTS levels (level INT, xp INT, user INT, guild INT)")
-cursor.execute("CREATE TABLE IF NOT EXISTS twitch (twitch_user TEXT, guild_id INT)")
+cursor.execute("CREATE TABLE IF NOT EXISTS twitch (twitch_user TEXT, status TEXT , guild_id INT)")
 cursor.execute("CREATE TABLE IF NOT EXISTS levelsettings (levelsys BOOL, role INT, levelreq INT, message TEXT ,guild_id INT)")
 database.commit()
 
@@ -153,7 +153,6 @@ class eventHandler(commands.Cog):
                 await message.channel.send(msg)
         await self.bot.process_commands(message)
 
-
     @tasks.loop(seconds=30)
     async def live_notifs_loop(self):
         guilds = cursor.execute("SELECT guild_id FROM twitch").fetchall()
@@ -163,25 +162,34 @@ class eventHandler(commands.Cog):
                 channel = cursor.execute("SELECT twitch_channel_id FROM twitch_config WHERE guild_id = ?", (guild_id[0],)).fetchone()
                 channel = self.bot.get_channel(channel[0])
 
-                twitch_users = cursor.execute("SELECT twitch_user FROM twitch WHERE guild_id = ?", (guild_id[0],)).fetchall()
-                sent_notification = False
+                twitch_users = cursor.execute("SELECT twitch_user FROM twitch WHERE guild_id = ?", (guild_id[0],))
+                twitch_users = twitch_users.fetchall()
 
                 for twitch_user in twitch_users:
                     status = await checkuser(twitch_user[0])
+                    streamer_status = cursor.execute("SELECT status FROM twitch WHERE twitch_user = ? AND guild_id = ?", (twitch_user[0], guild_id[0]))
+                    streamer_status = streamer_status.fetchone()
+
                     if status is True:
-                        async for message in channel.history(limit=200):
-                            sent_notification = False
-                            if str(twitch_user[0]) in message.content and "is now streaming" in message.content:
-                                print(f"{twitch_user} is already streaming. Not sending a notification.")
-                                sent_notification = True
-                                break
-                        if not sent_notification:
+                        # Check if the streamer's status is not live
+                        if streamer_status[0] == 'not live':
                             await channel.send(
                                 f":red_circle: **LIVE**\n @everyone is now streaming on Twitch!"
                                 f"\nhttps://www.twitch.tv/{twitch_user[0]}")
-                            print(f"{twitch_user} started streaming. Sending a notification.")                    
+                            # Update the streamer's status to live
+                            actualStatus = 'live'
+                            cursor.execute("UPDATE twitch SET status = ? WHERE twitch_user = ?", (actualStatus, twitch_user[0]))
+                            database.commit()
 
-async def setup(bot):
+                    else:
+                        # Update the streamer's status to not live
+                        actualStatus = 'not live'
+                        cursor.execute("UPDATE twitch SET status = ? WHERE twitch_user = ?", (actualStatus, twitch_user[0]))
+                        database.commit()    
+
+
+
+async def setup(bot) -> None:
     await bot.add_cog(eventHandler(bot))
 
 #*Returns true if online, false if not.
@@ -193,7 +201,6 @@ async def checkuser(user):
         url = TWITCH_STREAM_API_ENDPOINT.format(userid)
         try:
             req = requests.Session().get(url, headers= API_HEADERS)
-            print(url)
             jsondata = req.json()
             if jsondata['data'][0]['type'] == "live":
                 return True
