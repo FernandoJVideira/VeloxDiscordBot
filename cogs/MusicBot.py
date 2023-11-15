@@ -1,7 +1,7 @@
 import datetime
 import os
 import discord
-import time
+import asyncio
 import wavelink
 from wavelink import TrackEventPayload
 from discord.ext import commands
@@ -27,10 +27,10 @@ class Music(commands.Cog):
     async def on_wavelink_track_end(self, payload: TrackEventPayload):
         vc = payload.player
 
-        if vc.queue.is_empty:
+        if vc.queue.is_empty and not vc.queue.loop:
             vc.auto_queue.clear()
             vc.autoplay = False
-            time.sleep(30)
+            asyncio.sleep(30)
             vc.disconnect()
             return
         
