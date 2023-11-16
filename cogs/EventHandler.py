@@ -2,17 +2,12 @@ import os
 import random
 import discord
 import requests
+import sqlite3
 from twitchAPI.twitch import Twitch
 from discord.ext import commands, tasks
-import sqlite3
 
 database = sqlite3.connect("bot.db")
 cursor = database.cursor()
-cursor.execute("CREATE TABLE IF NOT EXISTS levels (level INT, xp INT, user INT, guild INT)")
-cursor.execute("CREATE TABLE IF NOT EXISTS twitch (twitch_user TEXT, status TEXT , guild_id INT)")
-cursor.execute("CREATE TABLE IF NOT EXISTS levelsettings (levelsys BOOL, role INT, levelreq INT, message TEXT ,guild_id INT)")
-database.commit()
-
 
 #* Authentication with Twitch API. 
 client_id = os.getenv("TWITCH_CLIENT_ID")
@@ -36,40 +31,25 @@ class eventHandler(commands.Cog):
         self.live_notifs_loop.start()
 
     @commands.Cog.listener()
+    async def on_guild_join(self, guild):
+        await setLvlSysDefault(guild)
+
+
+    @commands.Cog.listener()
     async def on_member_join(self, member):
         guild = member.guild
-
-        cursor.execute("SELECT welcome_channel_id FROM welcome WHERE guild_id = ?", (guild.id,))
-        guildchannelID = cursor.fetchone()
-        if guildchannelID:
-            guildchannel = guild.get_channel(guildchannelID[0])
-        else:
-            guildchannel = None
+        guildchannel = await getGuildChannel(guild)
 
         cursor.execute("SELECT role_id FROM defaultrole WHERE guild_id = ?", (guild.id,))
         defaultrole = cursor.fetchone()
-
-        if defaultrole:
-            defaultrole = guild.get_role(defaultrole[0])
-            try:
-                await member.add_roles(defaultrole)
-            except discord.HTTPException:
-                print("I don't have the permissions to add the default role.")
+        
+        await setDefaultRole(guild, member, defaultrole)
 
         dmchannel = await member.create_dm()
         await dmchannel.send(f"Welcome to **{guild.name}**! Have fun!")
 
         if guildchannel:
-            # Welcome Embed
-            MyEmbed = discord.Embed(
-                title="👋 Welcomeee!", description=f"{member.mention}! Welcome to the Shit Showww!", color=discord.Colour.orange())
-            MyEmbed.set_author(
-                name=f"{member.name} #{member.discriminator}", icon_url=member.display_avatar.url)
-            MyEmbed.set_thumbnail(url=member.display_avatar.url)
-            MyEmbed.set_image(
-                url="https://media.giphy.com/media/61XS37iBats8J3QLwF/giphy.gif")
-            MyEmbed.set_footer(text=f"ID: {member.id}")
-
+            MyEmbed = await CreateEmbed(member)
             await guildchannel.send(member.mention, embed=MyEmbed)
 
     @commands.Cog.listener()
@@ -80,7 +60,7 @@ class eventHandler(commands.Cog):
         author = message.author
         guild = message.guild
         levelupChannelID = cursor.execute("SELECT levelup_channel_id FROM levelup WHERE guild_id = ?", (guild.id,)).fetchone()
-        if levelupChannelID is not None:
+        if levelupChannelID:
             levelupChannel = guild.get_channel(levelupChannelID[0])
         
         cursor.execute("SELECT levelsys FROM levelsettings WHERE guild_id = ?", (guild.id,))
@@ -121,7 +101,6 @@ class eventHandler(commands.Cog):
             
             cursor.execute("SELECT message FROM levelsettings WHERE guild_id = ?", (guild.id,))
             template = cursor.fetchone()
-            print(template)
 
             if not template:
                 msg = f"Congratulations {author.mention}, you have leveled up to level {level}!"
@@ -211,3 +190,39 @@ async def checkuser(user):
             return False
     except StopAsyncIteration:
         return False
+    
+async def CreateEmbed(member) -> discord.Embed:
+    # Welcome Embed
+    MyEmbed = discord.Embed(
+        title="👋 Welcomeee!", description=f"{member.mention}! Welcome to the Shit Showww!", color=discord.Colour.orange())
+    MyEmbed.set_author(
+        name=f"{member.name} #{member.discriminator}", icon_url=member.display_avatar.url)
+    MyEmbed.set_thumbnail(url=member.display_avatar.url)
+    MyEmbed.set_image(
+        url="https://media.giphy.com/media/61XS37iBats8J3QLwF/giphy.gif")
+    MyEmbed.set_footer(text=f"ID: {member.id}")
+
+    return MyEmbed
+
+async def getGuildChannel(guild) -> discord.channel:
+    cursor.execute("SELECT welcome_channel_id FROM welcome WHERE guild_id = ?", (guild.id,))
+    guildchannelID = cursor.fetchone()
+    if guildchannelID:
+        guildchannel = guild.get_channel(guildchannelID[0])
+    else:
+        guildchannel = None
+    
+    return guildchannel
+
+async def setDefaultRole(guild, member, role):
+   if role:
+        defaultRole = guild.get_role(role[0])
+        try:
+            await member.add_roles(defaultRole)
+        except discord.HTTPException:
+            print("I don't have the permissions to add the default role.") 
+
+async def setLvlSysDefault(guild):
+    cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?,?)", (False,0,0,None,guild.id))
+    database.commit() 
+

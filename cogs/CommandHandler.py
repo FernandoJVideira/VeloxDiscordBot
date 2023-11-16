@@ -9,12 +9,6 @@ from easy_pil import *
 
 database = sqlite3.connect("bot.db")
 cursor = database.cursor()
-cursor.execute("CREATE TABLE IF NOT EXISTS welcome (guild_id INT, welcome_channel_id INT)")
-cursor.execute("CREATE TABLE IF NOT EXISTS levelup (guild_id INT, levelup_channel_id INT)")
-cursor.execute("CREATE TABLE IF NOT EXISTS twitch_config (guild_id INT, twitch_channel_id INT)")
-cursor.execute("CREATE TABLE IF NOT EXISTS rps (guild_id INT, user_id INT, score INT)")
-cursor.execute("CREATE TABLE IF NOT EXISTS defaultrole (guild_id INT, role_id INT)")
-
 class CommandHandler(commands.Cog):
     
     def __init__(self, bot):
@@ -25,6 +19,11 @@ class CommandHandler(commands.Cog):
     @app_commands.command(name="ping", description="Pings the bot")
     async def ping(self, ctx : discord.Interaction):
         await ctx.response.send_message(f"Pong! 🏓  {self.bot.latency * 1000:.0f}ms")
+
+    @app_commands.command(name="scream", description="The name says it all")
+    @app_commands.checks.has_role("Panik") 
+    async def scream(self, ctx : discord.Interaction):
+        await ctx.response.send_message("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
 
     @app_commands.command(name="coinflip", description="Flips a coin")
     async def coinflip(self,ctx : discord.Interaction):
@@ -340,8 +339,7 @@ class CommandHandler(commands.Cog):
         MusicEmbed = discord.Embed(title = "Music Commands", description = "These are the Bot's Music Commands", color = discord.Colour.orange())
         MusicEmbed.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
         MusicEmbed.add_field(name = "/play", value = "This command makes the bot Play a song when in a voice channel! ", inline = False)
-        MusicEmbed.add_field(name = "/skip", value = "This command skips the current song!", inline = False)        #MusicEmbed.add_field(name = ".ds skip", value = "This comand skips to the queue's next song!", inline = False)
-        MusicEmbed.add_field(name = "/pause", value = "This command pauses the song playing!", inline = False)
+        MusicEmbed.add_field(name = "/skip", value = "This command skips the current song!", inline = False)
         MusicEmbed.add_field(name = "/resume", value = "This command resumes the paused song!", inline = False)
         MusicEmbed.add_field(name = "/setvolume", value = "This command sets the bot Volume (1-1000)", inline = False)
         MusicEmbed.add_field(name = "/loop", value = "This command loops the current song!", inline = False)
@@ -378,7 +376,7 @@ class CommandHandler(commands.Cog):
         #Leveling System
         LevelingEmbed = discord.Embed(title = "Leveling System", description = "About the leveling system", color = discord.Colour.orange())
         LevelingEmbed.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
-        LevelingEmbed.add_field(name = "Leveling System", value = "The leveling system is a system that allows users to gain XP and level up. The system is based on the amount of messages sent in a server. The more messages you send, the more XP you gain. The more XP you gain, the higher your level will be. The leveling system is enabled by default, however you can disable it by using the /slvl disable command. You can also configure the leveling system by using the /slvl command.", inline = False)
+        LevelingEmbed.add_field(name = "Leveling System", value = "The leveling system is a system that allows users to gain XP and level up. The system is based on the amount of messages sent in a server. The more messages you send, the more XP you gain. The more XP you gain, the higher your level will be. The leveling system is disabled by default, however you can enable it by using the /slvl enable command. You can also configure the leveling system by using the /slvl command.", inline = False)
         LevelingEmbed.add_field(name = "Leveling System Commands", value = "These are the commands for the leveling system", inline = False)
         LevelingEmbed.add_field(name = "/slvl enable/disable", value = "Enables/Disables the leveling system", inline = False)
         LevelingEmbed.add_field(name = "/slvl setlevelrewards", value = "Allows you to set a Role for each level", inline = False)
@@ -629,9 +627,7 @@ class CommandHandler(commands.Cog):
                 await ctx.response.send_message("The Leveling System is already enabled!")
             cursor.execute("UPDATE levelsettings SET levelsys = ? WHERE guild_id = ?", (True, ctx.guild.id))
             database.commit()
-        else:
-            cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?,?)", (True,0,0,None,ctx.guild.id))
-            database.commit() 
+
         await ctx.response.send_message("Leveling System Enabled!")
 
     @slvl.command(name="disable", description="Disables the Server Leveling System")
@@ -643,9 +639,6 @@ class CommandHandler(commands.Cog):
             if not levelsys[0]:
                 await ctx.response.send_message("The Leveling System is already enabled!")
             cursor.execute("UPDATE levelsettings SET levelsys = ? WHERE guild_id = ?", (False, ctx.guild.id))
-            database.commit()
-        else:
-            cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?,?)", (False,0,0,None,ctx.guild.id))
             database.commit()
         await ctx.response.send_message("Leveling System Disabled!")
 
@@ -718,6 +711,11 @@ class CommandHandler(commands.Cog):
 
     #----------------------------------------------//----------------------------------------------#
     #Error Handlers
+
+    @scream.error
+    async def scream_error(self, ctx: discord.Interaction, error):
+        if isinstance(error, app_commands.errors.MissingRole):
+            await ctx.response.send_message("You must have the Panik¢ß role to use this command.")
 
     #Moderation Commands ErrorHandlers
     @servername.error

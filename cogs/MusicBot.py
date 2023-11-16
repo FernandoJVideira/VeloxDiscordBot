@@ -16,7 +16,8 @@ class Music(commands.Cog):
     async def setup_hook(self):
         await self.bot.wait_until_ready()
         node: wavelink.Node = wavelink.Node(
-            uri='lavalink:2333', password=os.getenv('LAVALINK_PASSWORD'), secure=False)
+            #uri='lavalink:2333', password=os.getenv('LAVALINK_PASSWORD'), secure=False)
+            uri='https://lavalink-server.03pleaser-minst.repl.co:443', password='youshallnotpass', secure=True)
         await wavelink.NodePool.connect(client=self.bot, nodes=[node])
         
     @commands.Cog.listener()
@@ -62,6 +63,16 @@ class Music(commands.Cog):
                 musicEmbed = discord.Embed(title="Now Playing", description=f"{track.name}", color=discord.Color.orange())
                 musicEmbed.add_field(name="Requested by", value=ctx.user.mention)
 
+            elif "soundcloud.com" in search:
+                track = await wavelink.SoundCloudTrack.search(search)
+                if not track:
+                    await ctx.response.send_message(f'No tracks found with query: `{search}`')
+                    return
+                musicEmbed = discord.Embed(title="Now Playing", description=f"{track.title}", color=discord.Color.orange())
+                thumbURL = await track.fetch_thumbnail()
+                musicEmbed.set_thumbnail(url=thumbURL)
+                musicEmbed.add_field(name="Duration", value=str(datetime.timedelta(milliseconds=track.duration)))
+                musicEmbed.add_field(name="Requested by", value=ctx.user.mention)
             else:
                 #Search for the song
                 track = await wavelink.YouTubeTrack.search(search)
@@ -79,12 +90,12 @@ class Music(commands.Cog):
             if not vc.is_playing() or not vc.is_paused():
                 await ctx.response.send_message(embed=musicEmbed)
                 vc.autoplay = True
-                if "playlist" in search and isinstance(track, wavelink.YouTubePlaylist):
+                if isinstance(track, wavelink.YouTubePlaylist):
                     first_song = track.tracks[0]
                     await vc.play(first_song, populate=False)
                     for song in track.tracks[1:]:
                         await vc.queue.put_wait(song)
-                elif isinstance(track, wavelink.YouTubeTrack):
+                else:
                     await vc.play(track, populate=False)
                     return
             else:
@@ -210,6 +221,7 @@ class Music(commands.Cog):
 
         if isinstance(error, app_commands.errors.MissingRole):
             await ctx.response.send_message("You must have the DJ role to use this command.")
+        #elif isinstance(error, wavelink.Track):
         else:
             await ctx.response.send_message("An unknown error occured.")
             print(error.args)
