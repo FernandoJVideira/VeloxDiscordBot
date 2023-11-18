@@ -14,7 +14,7 @@ class MyBot(commands.Bot):
         self.createDatabase()
 
     async def setup_hook(self):
-        for extention in ["cogs.EventHandler", "cogs.CommandHandler"]:
+        for extention in ["cogs.MusicBot","cogs.EventHandler", "cogs.CommandHandler"]:
             await bot.load_extension(extention)
         await self.tree.sync()
 
