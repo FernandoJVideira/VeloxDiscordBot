@@ -19,17 +19,13 @@ class MyBot(commands.Bot):
         await self.tree.sync()
 
     def createDatabase(self):
-        database = sqlite3.connect("bot.db")
-        cursor = database.cursor()
-        cursor.execute("CREATE TABLE IF NOT EXISTS levels (level INT, xp INT, user INT, guild INT)")
-        cursor.execute("CREATE TABLE IF NOT EXISTS twitch (twitch_user TEXT, status TEXT , guild_id INT)")
-        cursor.execute("CREATE TABLE IF NOT EXISTS levelsettings (levelsys BOOL, role INT, levelreq INT, message TEXT ,guild_id INT)")
-        cursor.execute("CREATE TABLE IF NOT EXISTS welcome (guild_id INT, welcome_channel_id INT)")
-        cursor.execute("CREATE TABLE IF NOT EXISTS levelup (guild_id INT, levelup_channel_id INT)")
-        cursor.execute("CREATE TABLE IF NOT EXISTS twitch_config (guild_id INT, twitch_channel_id INT)")
-        cursor.execute("CREATE TABLE IF NOT EXISTS rps (guild_id INT, user_id INT, score INT)")
-        cursor.execute("CREATE TABLE IF NOT EXISTS defaultrole (guild_id INT, role_id INT)")
-        database.commit()
+        with open('botDB.sql', 'r') as sql_file:
+            sql_script = sql_file.read()
+            db = sqlite3.connect('bot.db')
+            cursor = db.cursor()
+            cursor.executescript(sql_script)
+            db.commit()
+            db.close()
 
 bot = MyBot()
 load_dotenv("./vars.env")

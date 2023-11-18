@@ -14,6 +14,7 @@ RUN pip install easy-pil
 RUN pip install twitchAPI
 
 COPY bot.py /bot
+COPY botDB.sql /bot
 RUN mkdir /bot/cogs
 COPY cogs /bot/cogs
 
