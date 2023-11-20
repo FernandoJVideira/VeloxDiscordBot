@@ -6,6 +6,7 @@ import sqlite3
 from twitchAPI.twitch import Twitch
 from discord.ext import commands, tasks
 
+#* Connect to the database
 database = sqlite3.connect("bot.db")
 cursor = database.cursor()
 
@@ -115,9 +116,9 @@ class eventHandler(commands.Cog):
 
                 #*For each streamer, check if they are live
                 for twitch_user in twitch_users:
-                    #Get the streamer's status from the twitch API (used to compare with the status in the database)
+                    #*Get the streamer's status from the twitch API (used to compare with the status in the database)
                     status = await self.checkuser(twitch_user[0])
-                    #Get the streamer's status from the database
+                    #*Get the streamer's status from the database
                     streamer_status = await self.getStreamerStatusDB(twitch_user, guild_id)
 
                     #*If the streamer is live
@@ -128,7 +129,7 @@ class eventHandler(commands.Cog):
                         actualStatus = 'not live'
                         await self.updateStreamerStatus(twitch_user[0], actualStatus)  
 
-#------------------------------------------------------------------------------------------------------------#UTILS#------------------------------------------------------------------------------------------------------------#
+#*------------------------------------------------------------------------------------------------------------*#UTILS#*------------------------------------------------------------------------------------------------------------*#
 
     async def createEmbed(self, member) -> discord.Embed:
         #*Welcome Embed
