@@ -1,5 +1,5 @@
 import os
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 import sqlite3
 import discord
 from discord.ext import commands
@@ -28,5 +28,5 @@ class MyBot(commands.Bot):
             db.close()
 
 bot = MyBot()
-load_dotenv("./vars.env")
+#load_dotenv("./vars.env")
 bot.run(os.getenv("TOKEN"))
