@@ -31,6 +31,8 @@ docker-buildx build --platform <target_pc_platform> -t <your_docker_hub_username
 On windows (Make sure you have docker installed and are able to use it in the terminal): 
 
 ```
+git clone https://github.com/FernandoJVideira/UmbreonBot.git
+cd path_to_repo/UmbreonBot
 docker build --tag <image_name> .
 docker image tag <image_name> <your_docker_hub_username>/<name_of_your_dockerhub_repo>
 docker push <your_docker_hub_username>/<name_of_your_dockerhub_repo>
@@ -45,6 +47,6 @@ from dotenv import load_dotenv
 load_dotenv("./vars.env")
 ```
 
-and rename the _example.env_ file to _vars.env_ and paste the information there instead of using the provides DockerFile.
+and rename the _example.env_ file to _vars.env_ and paste the information there instead of using the provided DockerFile.
 
 (Also, this project is open for suggestions, so just leave them here or feel free to make pull requests :D)
