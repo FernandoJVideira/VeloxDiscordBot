@@ -31,7 +31,8 @@ class eventHandler(commands.Cog):
     async def on_ready(self):
         print("Ready for action!")
         await twitch.authenticate_app([])
-        self.live_notifs_loop.start()
+        if not self.live_notifs_loop.is_running():
+            self.live_notifs_loop.start()
 
     #*When the bot joins a guild, set the level system to disabled by default
     @commands.Cog.listener()
@@ -89,7 +90,7 @@ class eventHandler(commands.Cog):
             #*Get the role reward, if any
             cursor.execute("SELECT role FROM levelsettings WHERE levelreq = ? AND guild_id = ?", (level,guild.id,))
             role = cursor.fetchone()
-            await self.updateMemberLvl(author, guild, level)
+            self.updateMemberLvl(author, guild, level)
             msg = await self.setLvlUpMsgTemplate(guild, author, level)
             #*Send the message and set the role reward, if any
             if role:
@@ -111,7 +112,7 @@ class eventHandler(commands.Cog):
             for guild_id in guilds:
                 #*Gets the guild, 'twitch streams' channel
                 channel = await self.getChannel("twitch_channel_id", "twitch_config", guild_id[0])
-                # Gets all the streamers in the guild
+                #*Gets all the streamers in the guild
                 twitch_users = await self.getTwitchUsers(guild_id)
 
                 #*For each streamer, check if they are live
@@ -227,13 +228,16 @@ class eventHandler(commands.Cog):
     async def setLvlUpMsgTemplate(self, guild, author, level):
         #*Get the level up message template from the database
         cursor.execute("SELECT message FROM levelsettings WHERE guild_id = ?", (guild.id,))
-        template = cursor.fetchone()
-        #*If there is no template, send the default message
-        if not template:
-            msg = f"Congratulations {author.mention}, you have leveled up to level {level}!"
-        else:
-            template = template[0]
-            msg = template.format(user=author.mention, level=level)
+        template = cursor.fetchall()
+
+        #*Check if there is a template, if not, send the default message
+        for message in template:
+            #*If there is no template, send the default message
+            if message[0] is not None:
+                template = message[0]
+                msg = template.format(user=author.mention, level=level)
+                return msg
+        msg = f"Congratulations {author.mention}, you have leveled up to level {level}!"
         return msg
 
     #*Gets the user's xp and level
@@ -266,7 +270,7 @@ class eventHandler(commands.Cog):
         database.commit()
 
     #*Updates the user's level
-    async def updateMemberLvl(self, author, guild, level):
+    def updateMemberLvl(self, author, guild, level):
         #*Update the user's level in the database
         cursor.execute("UPDATE levels SET level = ? WHERE user = ? AND guild = ?", (level, author.id, guild.id))
         cursor.execute("UPDATE levels SET xp = ? WHERE user = ? AND guild = ?", (0, author.id, guild.id))
