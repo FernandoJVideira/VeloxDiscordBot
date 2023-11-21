@@ -21,14 +21,19 @@ Next you'll need a [DockerHub](https://hub.docker.com) account to be able to upl
 
 For this next phase, you'll have to get Docker installed and running on your machine.
 
-If you're using a Linux/Mac to buld the docker image, all you have to do is follow this steps:
+If you're using a Linux/Mac to build the docker image, all you have to do is follow this steps:
 
 ```
 git clone https://github.com/FernandoJVideira/UmbreonBot.git
 cd path_to_repo/UmbreonBot
-docker-buildx build --platform <target_pc_platform> -t <your_docker_hub_username>/umbreon_bot:latest --push
+docker-buildx build --platform <target_pc_platform> -t <your_docker_hub_username>/name_of_your_dockerhub_repo:latest --push
 ```
-(Windows Instructions are a wip)
+On windows: 
+
+```
+docker build --tag <image_name> .
+docker image tag <image_name> <your_docker_hub_username>/<name_of_your_dockerhub_repo>
+```
 
 After that, go to your target machine, pull the bot's image from your DockerHub and run it in the same docker network as the Lavalink server.
 
