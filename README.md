@@ -28,11 +28,12 @@ git clone https://github.com/FernandoJVideira/UmbreonBot.git
 cd path_to_repo/UmbreonBot
 docker-buildx build --platform <target_pc_platform> -t <your_docker_hub_username>/name_of_your_dockerhub_repo:latest --push
 ```
-On windows: 
+On windows (Make sure you have docker installed and are able to use it in the terminal): 
 
 ```
 docker build --tag <image_name> .
 docker image tag <image_name> <your_docker_hub_username>/<name_of_your_dockerhub_repo>
+docker push <your_docker_hub_username>/<name_of_your_dockerhub_repo>
 ```
 
 After that, go to your target machine, pull the bot's image from your DockerHub and run it in the same docker network as the Lavalink server.
