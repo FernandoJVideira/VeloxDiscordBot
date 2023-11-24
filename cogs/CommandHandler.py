@@ -238,6 +238,8 @@ class CommandHandler(commands.Cog):
         #*Updates the user's score
         if result == "You won!":
             score = (score[0] + 1,)
+            query = "UPDATE rps SET score = ? WHERE guild_id = ? AND user_id = ?"
+            self.execute_db_query(query, (score[0], ctx.guild.id, ctx.user.id))
             self.update_score(ctx, score[0])
         #*Sends the game result
         await self.send_game_result(ctx, result, hand, bot_hand, score, color)
@@ -270,6 +272,7 @@ class CommandHandler(commands.Cog):
             await ctx.response.send_message(embed=embed)
 
     @app_commands.command(name="help", description="Shows the bot's commands")
+
     async def help(self,ctx : discord.Interaction):
         embeds = []
         #*Creates the Fun Commands Embed
@@ -430,9 +433,11 @@ class CommandHandler(commands.Cog):
 
         #*If there's no welcome channel, insert it into the database, otherwise update it
         if not existing_welcome_channel:
-            self.insert_welcome_channel(guild_id, channel_id)
+            query = "INSERT INTO welcome VALUES (?,?)"
+            self.execute_db_query(query, (guild_id, channel_id))
         else:
-            self.update_welcome_channel(guild_id, channel_id)
+            query = "UPDATE welcome SET welcome_channel_id = ? WHERE guild_id = ?"
+            self.execute_db_query(query, (guild_id, channel_id))
 
         await ctx.response.send_message(f"Welcome Channel set to {welcome_channel.mention}")
 
@@ -440,8 +445,8 @@ class CommandHandler(commands.Cog):
     @app_commands.checks.has_permissions(manage_guild = True)
     async def removeWelcomeChannel(self,ctx : discord.Interaction):
         #*Deletes the welcome channel from the database
-        cursor.execute("DELETE FROM welcome WHERE guild_id = ?", (ctx.guild.id,))
-        database.commit()
+        query = "DELETE FROM welcome WHERE guild_id = ?"
+        self.execute_db_query(query, (ctx.guild.id,))
         #*Sends a message
         await ctx.response.send_message(f"Removed the Welcome Channel!")
 
@@ -457,9 +462,11 @@ class CommandHandler(commands.Cog):
         existing_levelup_channel = self.fetch_from_db(channelQuery, (guild_id,))
         #*If there's no levelup channel, insert it into the database, otherwise update it
         if not existing_levelup_channel:
-            self.insert_levelup_channel(guild_id, channel_id)
+            query = "INSERT INTO levelup VALUES (?,?)"
+            self.execute_db_query(query, (guild_id, channel_id))
         else:
-            self.update_levelup_channel(guild_id, channel_id)
+            query = "UPDATE levelup SET levelup_channel_id = ? WHERE guild_id = ?"
+            self.execute_db_query(query, (guild_id, channel_id))
         #*Sends a message
         await command_context.response.send_message(f"Level Up Channel set to {levelup_channel.mention}")
 
@@ -484,9 +491,11 @@ class CommandHandler(commands.Cog):
         existing_twitch_config = self.fetch_from_db(configQuery, (guild_id,))
         #*If there's no twitch channel, insert it into the database, otherwise update it
         if not existing_twitch_config:
-            self.insert_twitch_config(guild_id, channel_id)
+            query = "INSERT INTO twitch_config VALUES (?,?)"
+            self.execute_db_query(query, (guild_id, channel_id))
         else:
-            self.update_twitch_config(guild_id, channel_id)
+            query = "UPDATE twitch_config SET twitch_channel_id = ? WHERE guild_id = ?"
+            self.execute_db_query(query, (guild_id, channel_id))
         #*Sends a message
         await command_context.response.send_message(f"Notification Channel set to {twitch_notification_channel.mention}")
     
@@ -494,8 +503,8 @@ class CommandHandler(commands.Cog):
     @app_commands.checks.has_permissions(manage_guild = True)
     async def removeStreamChannel(self,ctx : discord.Interaction):
         #*Deletes the twitch channel from the database
-        cursor.execute("DELETE FROM twitch_config WHERE guild_id = ?", (ctx.guild.id,))
-        database.commit()
+        query = "DELETE FROM twitch_config WHERE guild_id = ?"
+        self.execute_db_query(query, (ctx.guild.id,))
         #*Sends a message
         await ctx.response.send_message(f"Removed the Notification Channel!")
 
@@ -510,8 +519,8 @@ class CommandHandler(commands.Cog):
         if not notChannel:
             await ctx.response.send_message("Please set a Notification Channel first!")
         else:
-            cursor.execute("INSERT INTO twitch VALUES (?,?,?)", (streamer,"not live", ctx.guild.id))
-            database.commit()
+            query = "INSERT INTO twitch VALUES (?,?,?)"
+            self.execute_db_query(query, (streamer,"not live", ctx.guild.id))
             await ctx.response.send_message(f"Added {streamer} to the Streamers List!")
 
     @config.command(name="removestreamer", description="Removes a Streamer from Twitch Notifications")
@@ -519,8 +528,8 @@ class CommandHandler(commands.Cog):
     @app_commands.checks.has_permissions(manage_guild = True)
     async def removeStreamer(self,ctx : discord.Interaction, streamer : str):
         #*Deletes the streamer from the database
-        cursor.execute("DELETE FROM twitch WHERE twitch_user = ? AND guild_id = ?", (streamer, ctx.guild.id))
-        database.commit()
+        query = "DELETE FROM twitch WHERE twitch_user = ? AND guild_id = ?"
+        self.execute_db_query(query, (streamer, ctx.guild.id))
         #*Sends a message
         await ctx.response.send_message(f"Removed {streamer} from the Streamers List!")     
 
@@ -535,9 +544,11 @@ class CommandHandler(commands.Cog):
         existing_default_role = self.fetch_from_db("SELECT * FROM defaultrole WHERE guild_id = ?", (guild_id,))
         #*If there's no default role, insert it into the database, otherwise update it
         if not existing_default_role:
-            self.insert_default_role(guild_id, role_id)
+            query = "INSERT INTO defaultrole VALUES (?,?)"
+            self.execute_db_query(query, (guild_id, role_id))
         else:
-            self.update_default_role(guild_id, role_id)
+            query = "UPDATE defaultrole SET role_id = ? WHERE guild_id = ?"
+            self.execute_db_query(query, (role_id, guild_id))
         #*Sends a message
         await command_context.response.send_message(f"Default Role set to {default_role.mention}")  
 
@@ -555,13 +566,15 @@ class CommandHandler(commands.Cog):
 
         #*If there's no levelsys, insert it into the database, otherwise update it
         if not levelsys:
-            self.insert_levelsettings(guild_id, True)
+            query = "INSERT INTO levelsettings VALUES (?,?,?,?)"
+            self.execute_db_query(query, (True, 0, 0, None, guild_id))
         else:
             #*If the levelsys is already enabled, send a message 
             if levelsys[0] and levelsys[0][0]:
                 await command_context.response.send_message("The Leveling System is already enabled!")
                 return
-            self.update_levelsettings(guild_id, True)
+            query = "UPDATE levelsettings SET levelsys = ? WHERE guild_id = ?"
+            self.execute_db_query(query, (True, guild_id))
         #*Sends a message
         await command_context.response.send_message("Leveling System Enabled!")
 
@@ -576,13 +589,15 @@ class CommandHandler(commands.Cog):
 
         #*If there's no levelsys, insert it into the database, otherwise update it
         if not levelsys:
-            self.insert_levelsettings(guild_id, False)
+            query = "INSERT INTO levelsettings VALUES (?,?,?,?)"
+            self.execute_db_query(query, (False, 0, 0, None, guild_id))
         else:
             #*If the levelsys is already enabled, send a message
             if levelsys[0] and not levelsys[0][0]:
                 await ctx.response.send_message("The Leveling System is already disabled!")
                 return
-            self.update_levelsettings(guild_id, False)
+            query = "UPDATE levelsettings SET levelsys = ? WHERE guild_id = ?"
+            self.execute_db_query(query, (guild_id, False))
         #*Sends a message
         await ctx.response.send_message("Leveling System Disabled!")
 
@@ -614,7 +629,8 @@ class CommandHandler(commands.Cog):
             return
         
         #*If there's no reward role, insert it into the database, otherwise update it
-        self.insert_reward(guild_id, role_id, reward_level)
+        query = "INSERT INTO levelsettings VALUES (?,?,?,?)"
+        self.execute_db_query(query, (True, role_id, reward_level, None, guild_id))
         await command_context.response.send_message(f"Set {reward_role.mention} as a reward for level {reward_level}!")
     
     @slvl.command(name="removereward", description="Removes a Level Reward")
@@ -633,7 +649,8 @@ class CommandHandler(commands.Cog):
             return
 
         #*Fetches the existing reward role, if there is one
-        self.delete_reward(reward_level)
+        query = "DELETE FROM levelsettings WHERE levelreq = ? AND guild_id = ?"
+        self.execute_db_query(query, (reward_level, guild_id))
         await command_context.response.send_message(f"Removed the reward for level {reward_level}!")
 
     @slvl.command(name="setlvlupmessage", description="Sets the Level Up Message")
@@ -656,8 +673,11 @@ class CommandHandler(commands.Cog):
 
         #*If there's no level up message, insert it into the database, otherwise update it
         if lvlupmessage:
-            self.update_message(guild_id, level_up_message)
+            query = "UPDATE levelsettings SET message = ? WHERE guild_id = ?"
+            self.execute_db_query(query, (level_up_message, guild_id))
         else:
+            query = "INSERT INTO levelsettings VALUES (?,?,?,?,?)"
+            self.execute_db_query(query, (True, 0, 0, level_up_message, guild_id))
             self.insert_message(guild_id, level_up_message)
 
         #*Sends a message
@@ -676,7 +696,8 @@ class CommandHandler(commands.Cog):
             await command_context.response.send_message("The Leveling System is disabled in this server!")
             return
         #*Resets the level up message
-        self.reset_message(guild_id)
+        query = "UPDATE levelsettings SET message = ? WHERE guild_id = ?"
+        self.execute_db_query(query, (None, guild_id))
         await command_context.response.send_message("Level Up Message reset!")
 
 
@@ -757,8 +778,11 @@ class CommandHandler(commands.Cog):
             await ctx.response.send_message("You don't have permission to do that!")
 
     #*Utility Functions
-    
-    #*These functions create the embeds for the help command
+        """
+        The above functions create embeds for different categories of commands in a Discord bot.
+        :return: The functions are returning embeds, which are formatted messages that can be sent in a
+        Discord server.
+        """
     async def createFunCmdEmbed(self):
         em = discord.Embed(title = "Fun Commands", description = "These are the bot's Fun commands", color = discord.Colour.orange())
         em.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
@@ -774,6 +798,7 @@ class CommandHandler(commands.Cog):
         em.add_field(name = "/rewards", value = "This comand allows you to view the rewards for each level", inline = False)
         em.add_field(name = "/leaderboard", value = "This comand allows you to view the server's leaderboard", inline = False)
         return em
+    
     async def createMusicCmdEmbed(self):
         em = discord.Embed(title = "Music Commands", description = "These are the Bot's Music Commands", color = discord.Colour.orange())
         em.set_thumbnail(url = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg")
@@ -828,7 +853,17 @@ class CommandHandler(commands.Cog):
 
         return em
     
-    #*This function creates the embed for the Poll command
+
+    """
+    The function `createPollEmbed` creates a Discord embed with a title, a description indicating the
+    remaining time, and options for a poll.
+    
+    :param title: The title of the poll
+    :param minutes: The `minutes` parameter is the number of minutes remaining for the poll. It is used
+    to display the remaining time in the poll embed
+    :param options: A list of options for the poll. Each option is a string
+    :return: The function `createPollEmbed` returns an instance of the `discord.Embed` class.
+    """
     async def createPollEmbed(self,title, minutes, options):
         em = discord.Embed(title = title, description = f"You have **{minutes}** minutes remaining!", color=discord.Colour.orange())
         if options[0] != "-":
@@ -836,7 +871,18 @@ class CommandHandler(commands.Cog):
                 em.add_field(name = f"{self.numbers[number]}", value = f"**{option}**", inline = False)
         return em
 
-    #*Gets the user's Xp and Level
+
+    """
+    The function `getLvlAndXp` retrieves a user's XP and level from a database, and if they don't exist,
+    inserts them into the database and returns 0 for each.
+    
+    :param member: The `member` parameter represents a user or member object in a guild or server. It
+    could be an instance of a class that represents a user/member in a Discord server, for example
+    :param guild: The `guild` parameter represents the guild (server) where the member is located. It is
+    used to identify the specific guild in the database query and retrieve the member's xp and level
+    information specific to that guild
+    :return: the user's xp and level as a tuple.
+    """
     async def getLvlAndXp(self, member, guild):
         #*Gets the user's xp and level from the database
         xp_query = "SELECT xp FROM levels WHERE user = ? AND guild = ?"
@@ -853,8 +899,17 @@ class CommandHandler(commands.Cog):
         level = level[0][0]
         return xp, level
 
+    """
+    The `createRankImage` function creates a rank image for a user with their profile picture, name,
+    level, and XP percentage.
     
-    #*This function Creates the image for the Rank Command
+    :param member: The `member` parameter is an object representing a member of a Discord server. It
+    contains information about the member, such as their username, avatar, and other details
+    :param userData: The `userData` parameter is a dictionary that contains information about the user's
+    data. It includes the following keys:
+    :return: a discord.File object, which represents a file that can be sent in a Discord message. The
+    file contains the image generated by the function, with the filename "levelcard.png".
+    """
     async def createRankImage(self,member, userData):
         #*Create a background image
         background = Editor(Canvas((900, 300), color="#141414"))
@@ -882,7 +937,20 @@ class CommandHandler(commands.Cog):
         file = discord.File(fp=background.image_bytes, filename="levelcard.png")
 
         return file
-    #*This function creates the embed for the Rewards Command
+
+
+    """
+    The function `createRoleRewardsEmbrd` creates an embed with role rewards for each level.
+    
+    :param ctx: The `ctx` parameter is an instance of `discord.Interaction`, which represents the
+    interaction context of a command or event in a Discord bot. It contains information about the user,
+    the channel, the guild, and other relevant data related to the interaction
+    :type ctx: discord.Interaction
+    :param role_rewards: role_rewards is a list of tuples, where each tuple contains information about a
+    role reward. Each tuple has three elements:
+    :return: an embed object (`discord.Embed`) that contains information about the role rewards for each
+    level.
+    """
     async def createRoleRewardsEmbrd(self, ctx : discord.Interaction, role_rewards):
         #*Create the embed
         em = discord.Embed(title="Rewards", description="These are the rewards for each level", color=discord.Colour.orange())
@@ -894,7 +962,17 @@ class CommandHandler(commands.Cog):
         
         return em
     
-    #*This function creates the embed for the Leaderboard Command
+    """
+    The function `createLevelLeaderBoardEmbed` creates an embed for a leaderboard with user data and
+    returns it.
+    
+    :param data: The `data` parameter is a list of user data. Each element in the list represents a user
+    and contains their level, XP, and user ID
+    :param ctx: ctx is an object that represents the context of the command being executed. It contains
+    information such as the message, the author, the server, and other relevant details
+    :return: an embed object (`discord.Embed`) that contains the leaderboard information for the
+    server's users.
+    """
     async def createLevelLeaderBoardEmbed(self,data,ctx):
         #*Gets the number of users in the server
         users_count = len(data)
@@ -908,26 +986,42 @@ class CommandHandler(commands.Cog):
             em.add_field(name=field_name, value=field_value, inline=False)
 
         return em
-    #*This function gets the RPS Score from the database
+
+
+    """
+    The `get_score` function retrieves the user's score from the database and if it doesn't exist,
+    inserts it into the database with a default value of 0.
+    
+    :param ctx: ctx is an object that represents the context of the current command or event. It
+    typically contains information such as the guild (server) ID, user ID, and other relevant data for
+    the command or event being executed
+    :return: the user's score. If the score is found in the database, it will return the score value. If
+    the score is not found, it will insert a score of 0 into the database and return 0.
+    """
     def get_score(self, ctx):
         #*Gets the user's score from the database
         scoreQuery = "SELECT score FROM rps WHERE guild_id = ? AND user_id = ?"
         score = self.fetch_from_db(scoreQuery, (ctx.guild.id, ctx.user.id))
         #*If there's no score, insert it into the database
         if not score:
-            cursor.execute("INSERT INTO rps VALUES (?,?,?)", (ctx.guild.id, ctx.user.id, 0))
-            database.commit()
+            query = "INSERT INTO rps VALUES (?,?,?)"
+            self.execute_db_query(query, (ctx.guild.id, ctx.user.id, 0))
             return 0
         else:
             return score[0]
-    
-    #*This function updates the RPS Score in the database
-    def update_score(self, ctx, score):
-        #*Updates the user's score in the database
-        cursor.execute("UPDATE rps SET score = ? WHERE guild_id = ? AND user_id = ?", (score, ctx.guild.id, ctx.user.id))
-        database.commit()
 
-    #*This function is responsible for the RPS result
+    """
+    The function determines the result of a game based on the user's and bot's hand gestures.
+    
+    :param user_hand: The user's hand gesture in the game (e.g., "✌️" for a peace sign, "✋" for a raised
+    hand, "🤜" for a fist bump)
+    :param bot_hand: The `bot_hand` parameter represents the hand gesture made by the bot in a game. It
+    can be one of the following hand gestures: "✌️" (representing a peace sign), "✋" (representing a
+    raised hand), or "🤜" (representing
+    :return: a tuple containing the result of the game (either "It's a Draw!", "I won!", or "You won!")
+    and the corresponding discord.Colour object (either discord.Colour.orange(), discord.Colour.red(),
+    or discord.Colour.green()).
+    """
     def determine_game_result(self, user_hand, bot_hand):
         #*Determines the result of the game
         if user_hand == bot_hand:
@@ -936,7 +1030,27 @@ class CommandHandler(commands.Cog):
             return "I won!", discord.Colour.red()
         return "You won!", discord.Colour.green()
 
-    #*This function creates and sends the embed with the RPS Result
+
+    """
+    The function sends a game result message with the user's and bot's hands, the score, and a specified
+    color.
+    
+    :param ctx: The `ctx` parameter is an object that represents the context of the command being
+    executed. It contains information such as the message that triggered the command, the channel it was
+    sent in, the author of the message, and more. It is typically passed as the first parameter to
+    command functions in discord.py
+    :param result: The result of the game (e.g., "You win!", "You lose!", "It's a tie!")
+    :param user_hand: The `user_hand` parameter represents the hand that the user chose in the game. It
+    could be a string representing the user's choice, such as "rock", "paper", or "scissors"
+    :param bot_hand: The parameter `bot_hand` represents the hand that the bot chose in the game. It is
+    a string value that should be passed to the `value` parameter of the `embed.add_field()` method
+    :param score: The "score" parameter is a list that contains the score of the game. It is expected to
+    have only one element, which represents the score of the player
+    :param color: The "color" parameter in the "send_game_result" function is used to specify the color
+    of the embed message. It is a value that represents the color of the embed message, and it is used
+    to visually distinguish different types of messages or to match the theme of the bot. The color
+    parameter
+    """
     async def send_game_result(self, ctx, result, user_hand, bot_hand, score, color):
         embed = discord.Embed(title=result, description="Here's the result of the game", color=color)
         embed.add_field(name="You chose:", value=user_hand, inline=False)
@@ -944,98 +1058,116 @@ class CommandHandler(commands.Cog):
         embed.add_field(name="Score:", value=score[0], inline=False)
         await ctx.response.send_message(embed=embed)
 
-    #*This function creates the embed for the RPS Stats Command
+
+    """
+    The function creates and returns an embed object with the given score for a Rock-Paper-Scissors
+    game.
+    
+    :param score: The `score` parameter in the `create_score_embed` function is the score of the user's
+    Rock-Paper-Scissors game. It is used to display the score in the embed message
+    :return: an instance of the `discord.Embed` class.
+    """
     async def create_score_embed(self, score):
         em = discord.Embed(title="Your RPS Stats", description="These are your RPS Stats", color=discord.Colour.orange())
         em.add_field(name="Score:", value=score, inline=False)
         return em
-    #*This function creates the embed for the RPS Leaderboard Command
+    
+
+        """
+        The function `create_leaderboard_embed` creates a Discord embed object for displaying a
+        Rock-Paper-Scissors leaderboard.
+        
+        :param scores: The `scores` parameter is a list of tuples. Each tuple contains two elements: the
+        first element is the user ID, and the second element is the score
+        :return: an instance of the `discord.Embed` class, which represents an embedded message in Discord.
+        """
     async def create_leaderboard_embed(self, scores):
         em = discord.Embed(title="RPS Leaderboard", description="These is the RPS Leaderboard", color=discord.Colour.orange())
         for score in scores:
             user = await self.bot.fetch_user(score[0])
             em.add_field(name=f"{user.display_name}", value=f"Score: {score[1]}", inline=False)
         return em
-    #*This function gets the list of banned users from the guild
+    
+
+    """
+    The function `find_banned_user` searches for a user in a list of banned members and returns the user
+    if found, otherwise it returns None.
+    
+    :param banned_members: A list of objects representing banned members. Each object has a property
+    called "user" which contains information about the banned user, including their name
+    :param user_to_unban: The user name of the user that needs to be unbanned
+    :return: the user object of the banned member if the user to unban is found in the list of banned
+    members. If the user to unban is not found, it returns None.
+    """
     def find_banned_user(self, banned_members, user_to_unban):
         for banned_member in banned_members:
             if user_to_unban == banned_member.user.name:
                 return banned_member.user
         return None
     
-    #*This function purges messages by date
+    
+        """
+        The function `purge_messages_by_date` deletes all messages in a channel after a specified date and
+        sends a confirmation message.
+        
+        :param ctx: The `ctx` parameter is an object that represents the context of the command being
+        executed. It contains information about the message, the channel, the server, and the user who
+        triggered the command
+        :param day: The day parameter represents the day of the month for which you want to delete messages.
+        It should be an integer value between 1 and 31
+        :param month: The `month` parameter in the `purge_messages_by_date` function represents the month of
+        the date after which you want to delete messages. It should be an integer value between 1 and 12,
+        representing the months from January to December
+        :param year: The year parameter represents the year of the date after which you want to delete
+        messages
+        """
     async def purge_messages_by_date(self, ctx, day, month, year):
         await ctx.channel.purge(after=datetime(year, month, day))
         await ctx.channel.send(f"Deleted all messages after {day}/{month}/{year}")
 
-    #*This function purges messages by limit
+        """
+        The function `purge_messages_by_limit` deletes a specified number of messages in a channel and
+        sends a message confirming the number of messages deleted.
+        
+        :param ctx: ctx is the interaction object, which contains information about the current state of the
+        bot and the message that triggered the command. It includes attributes such as the channel,
+        user, guild, and message content
+        :param limit: The `limit` parameter in the `purge_messages_by_limit` function is the number of
+        messages to be deleted from the channel. It specifies the maximum number of messages to be
+        deleted, including the command message itself
+        """
     async def purge_messages_by_limit(self, ctx, limit):
         await ctx.channel.purge(limit=int(limit) + 1)
         await ctx.channel.send(f"Deleted {limit} messages")
     
-    #*The following functions are used to insert and update data in the database
 
-    def insert_welcome_channel(self, guild_id, channel_id):
-        cursor.execute("INSERT INTO welcome VALUES (?,?)", (guild_id, channel_id))
-        database.commit()
-
-    def update_welcome_channel(self, guild_id, channel_id):
-        cursor.execute("UPDATE welcome SET welcome_channel_id = ? WHERE guild_id = ?", (channel_id, guild_id))
-        database.commit()
-
-    def insert_levelup_channel(self, guild_id, channel_id):
-        cursor.execute("INSERT INTO levelup VALUES (?,?)", (guild_id, channel_id))
-        database.commit()
-
-    def update_levelup_channel(self, guild_id, channel_id):
-        cursor.execute("UPDATE levelup SET levelup_channel_id = ? WHERE guild_id = ?", (channel_id, guild_id))
-        database.commit()
-
-    def insert_twitch_config(self, guild_id, channel_id):
-        cursor.execute("INSERT INTO twitch_config VALUES (?,?)", (guild_id, channel_id))
-        database.commit()
-
-    def update_twitch_config(self, guild_id, channel_id):
-        cursor.execute("UPDATE twitch_config SET twitch_channel_id = ? WHERE guild_id = ?", (channel_id, guild_id))
+    """
+    The function executes a database query with the given query and parameters, and commits the changes
+    to the database.
+    
+    :param query: The query parameter is a string that represents the SQL query you want to execute on
+    the database. It can be any valid SQL statement, such as SELECT, INSERT, UPDATE, DELETE, etc
+    :param params: The "params" parameter is a tuple or list that contains the values to be substituted
+    into the query. These values are used to replace the placeholders in the query string. The
+    placeholders are typically represented by question marks (?) or percent signs (%s) in the query
+    string. The values in the "params
+    """
+    def execute_db_query(self, query, params):
+        cursor.execute(query, params)
         database.commit()
     
-    def insert_default_role(self, guild_id, role_id):
-        cursor.execute("INSERT INTO defaultrole VALUES (?,?)", (guild_id, role_id))
-        database.commit()
-
-    def update_default_role(self, guild_id, role_id):
-        cursor.execute("UPDATE defaultrole SET default_role_id = ? WHERE guild_id = ?", (role_id, guild_id))
-        database.commit()
-
-    def insert_levelsettings(self, guild_id, levelsys):
-        cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?,?)", (levelsys, 0, 0, None, guild_id))
-        database.commit()
-
-    def update_levelsettings(self, guild_id, levelsys):
-        cursor.execute("UPDATE levelsettings SET levelsys = ? WHERE guild_id = ?", (levelsys, guild_id))
-        database.commit()
-    
-    def insert_reward(self, guild_id, role_id, reward_level):
-        cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?,?)", (True, role_id, reward_level, None, guild_id))
-        database.commit()
-    
-    def delete_reward(self, guild_id, reward_level):
-        cursor.execute("DELETE FROM levelsettings WHERE levelreq = ? AND guild_id = ?", (reward_level, guild_id))
-        database.commit()
-    
-    def update_message(self, guild_id, level_up_message):
-        cursor.execute("UPDATE levelsettings SET message = ? WHERE guild_id = ?", (level_up_message, guild_id))
-        database.commit()
-
-    def insert_message(self, guild_id, level_up_message):
-        cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?,?)", (True, 0, 0, level_up_message, guild_id))
-        database.commit()
-
-    def reset_message(self, guild_id):
-        cursor.execute("UPDATE levelsettings SET message = ? WHERE guild_id = ?", (None, guild_id))
-        database.commit()
-
-    #*This function fetches data from the database
+        """
+        The function fetches data from a database using a given query and parameters.
+        
+        :param query: The query parameter is a string that represents the SQL query you want to execute on
+        the database. It only accepts SELECT statements.
+        :param params: The "params" parameter is a tuple that contains the values to be substituted into the
+        query string. These values are used to replace the placeholders in the query string, if any. The
+        placeholders are typically represented by question marks (?) or percent signs (%s) in the query
+        string
+        :return: The fetch_from_db function is returning the result of the cursor.fetchall() method, which
+        is a list of all the rows returned by the query execution.
+        """
     def fetch_from_db(self, query, params):
         cursor.execute(query, params)
         return cursor.fetchall()

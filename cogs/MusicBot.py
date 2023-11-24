@@ -238,7 +238,16 @@ class Music(commands.Cog):
 
     #*Utility Functions
 
-    #*Checks if the user is in a voice channel
+
+    """
+    The function "checkVoiceChannel" checks if the user is in a voice channel or in the same voice
+    channel as the bot, and sends an appropriate message if not.
+    
+    :param ctx: The parameter `ctx` is of type `discord.Interaction`, which represents an interaction
+    with a Discord bot. It contains information about the user, the guild, and the voice channel
+    :type ctx: discord.Interaction
+    :return: if the user is not in a voice channel or not in the same voice channel as the bot.
+    """
     async def checkVoiceChannel(self, ctx: discord.Interaction):
         #*Verify if the user is in a voice channel or in the same voice channel as the bot
         if not ctx.user.voice:
@@ -248,6 +257,15 @@ class Music(commands.Cog):
             await ctx.response.send_message("You must be in the same voice channel as the bot.")
             return
         
+    """
+    The function `connectToChannel` connects the bot to a voice channel if it is not already connected.
+    
+    :param ctx: The parameter `ctx` is of type `discord.Interaction`, which represents the context of
+    the interaction with the bot. It contains information about the user, the guild, and the channel
+    where the interaction occurred
+    :type ctx: discord.Interaction
+    :return: a wavelink.Player object, which represents the voice client that the bot is connected to.
+    """
     async def connectToChannel(self, ctx: discord.Interaction):
         #*Verify if the bot is in a voice channel and connect if not
         if not ctx.guild.voice_client:
@@ -256,7 +274,20 @@ class Music(commands.Cog):
             vc: wavelink.Player = ctx.guild.voice_client
         return vc
     
-    #*Gets the searched track and creates the embed
+
+    """
+    The `getTrack` function searches for a track or playlist based on the given search query and returns
+    the track and an embed message.
+    
+    :param ctx: The parameter `ctx` is of type `discord.Interaction`, which represents the context of
+    the interaction with the Discord API. It contains information about the user, the channel, and the
+    server where the interaction occurred
+    :type ctx: discord.Interaction
+    :param search: The `search` parameter is a string that represents the query used to search for a
+    track or playlist. It is used to search for either a specific song or a playlist on YouTube
+    :type search: str
+    :return: The function `getTrack` returns two values: `track` and `musicEmbed`.
+    """
     async def getTrack(self, ctx: discord.Interaction, search: str):
         #*If a playlist is searched, search for the playlist, else search for the song
         if "playlist" in search:
@@ -277,7 +308,25 @@ class Music(commands.Cog):
             musicEmbed = await self.createEmbed(track,"Now Playing",ctx)
         return track, musicEmbed
 
-    #*Creates an embed for the searched track/playlist
+
+    """
+    The function `createEmbed` creates an embed with different formats depending on whether a playlist
+    is searched or not, and includes information such as the title, description, thumbnail, duration (if
+    not a playlist), and the user who requested it.
+    
+    :param track: The `track` parameter is an object that represents a song or a playlist. It contains
+    information about the track, such as its name, title, duration, and thumbnail URL
+    :param embedTitle: The `embedTitle` parameter is a string that represents the title of the embed. It
+    can be any text that you want to display as the title of the embed
+    :param ctx: ctx is an object representing the context of the command being executed. It contains
+    information such as the user who invoked the command, the channel where the command was invoked, and
+    other relevant details
+    :param playlist: A boolean parameter that indicates whether the track is a playlist or not. If it is
+    set to True, the embed will have a different format and its title will be the playlist name. If it
+    is set to False, the embed will have a different format and its title will be the song title,
+    defaults to False (optional)
+    :return: an instance of the `discord.Embed` class.
+    """
     async def createEmbed(self, track, embedTitle, ctx, playlist=False):
         #*If a playlist is searched, the enbed will have a different format and it's title will be the playlist name, else the embed will have a different format and it's title will be the song title
         em = discord.Embed(title=f"{embedTitle}", description=f"{track.name if playlist else track.title}", color=discord.Color.orange())
@@ -289,7 +338,24 @@ class Music(commands.Cog):
         em.add_field(name="Requested by", value=ctx.user.mention)
         return em
     
-    #*Plays the track
+
+    """
+    This function plays a track in a voice channel using a music player and handles playlist management.
+    
+    :param ctx: The `ctx` parameter is of type `discord.Interaction` and represents the context of the
+    interaction, such as the user and the channel where the interaction occurred
+    :type ctx: discord.Interaction
+    :param vc: The parameter `vc` is of type `wavelink.Player`, which is a player object used for
+    playing audio tracks in a voice channel
+    :type vc: wavelink.Player
+    :param track: The `track` parameter in the `playTrack` function is the track that you want to play.
+    It can be either a single song or a playlist
+    :param musicEmbed: The `musicEmbed` parameter is an embed object that contains information about the
+    track that is being played. It is sent as a message in the Discord channel using the `send_message`
+    method of the `ctx.response` object. The embed typically includes details such as the track title,
+    artist, duration
+    :return: nothing (None).
+    """
     async def playTrack(self, ctx: discord.Interaction, vc: wavelink.Player, track, musicEmbed):
         #*Send the embed created in getTrack()
         await ctx.response.send_message(embed=musicEmbed)
@@ -305,7 +371,16 @@ class Music(commands.Cog):
             await vc.play(track)
             return
     
-    #*Gets the queue embed
+    
+        """
+        The `getQueueEmbed` function takes a voice client and returns an embed containing the queue of songs
+        with their titles and durations.
+        
+        :param vc: The parameter `vc` is of type `wavelink.Player`. It represents the voice client or player
+        object that is used to control the audio playback
+        :type vc: wavelink.Player
+        :return: an instance of the `discord.Embed` class, which represents an embedded message in Discord.
+        """
     async def getQueueEmbed(self, vc: wavelink.Player):
         #*Set a counter and a list of songs
         songCounter = 0
