@@ -5,6 +5,7 @@ import requests
 import sqlite3
 from twitchAPI.twitch import Twitch
 from discord.ext import commands, tasks
+    
 
 #* Connect to the database
 database = sqlite3.connect("bot.db")
@@ -38,6 +39,7 @@ class eventHandler(commands.Cog):
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
         await self.setLvlSysDefault(guild)
+        await self.setDefaultWelcomeMessages(guild)
 
     #*When a member joins a guild, send a welcome message
     @commands.Cog.listener()
@@ -45,16 +47,25 @@ class eventHandler(commands.Cog):
         guild = member.guild
         guildWelcomeChannel = await self.getChannel("welcome_channel_id", "welcome", guild.id)
 
-        cursor.execute("SELECT role_id FROM defaultrole WHERE guild_id = ?", (guild.id,))
-        defaultrole = cursor.fetchone()
+        query = "SELECT role_id FROM defaultrole WHERE guild_id = ?"
+        defaultrole = self.fetch_one_from_db(query, (guild.id,))
         
         await self.setDefaultRole(guild, member, defaultrole)
 
         dmchannel = await member.create_dm()
-        await dmchannel.send(f"Welcome to **{guild.name}**! Have fun!")
+        query = "SELECT welcome_dm FROM welcome WHERE guild_id = ?"
+        welcomeMessage = self.fetch_one_from_db(query, (guild.id,))
+        if welcomeMessage:
+            await dmchannel.send(welcomeMessage[0])
 
         if guildWelcomeChannel:
-            MyEmbed = await self.createEmbed(member)
+            messageQuery = "SELECT welcome_message FROM welcome WHERE guild_id = ?"
+            gifQuery = "SELECT welcome_gif_url FROM welcome WHERE guild_id = ?"
+
+            welcomeMessage = self.fetch_one_from_db(messageQuery, (guild.id,))
+            welcomeGif = self.fetch_one_from_db(gifQuery, (guild.id,))
+
+            MyEmbed = await self.createEmbed(member,welcomeMessage[0], welcomeGif[0])
             await guildWelcomeChannel.send(member.mention, embed=MyEmbed)
 
     #*When a message is sent, check if the level system is enabled, if so, add xp to the user
@@ -67,8 +78,8 @@ class eventHandler(commands.Cog):
         
         levelUpChannel = await self.getChannel("levelup_channel_id", "levelup", guild.id)        
         #*Get tge level system status
-        cursor.execute("SELECT levelsys FROM levelsettings WHERE guild_id = ?", (guild.id,))
-        levelsys = cursor.fetchone()
+        query = "SELECT levelsys FROM levelsettings WHERE guild_id = ?"
+        levelsys = self.fetch_one_from_db(query, (guild.id,))
 
         #*If the level system is disabled, return
         if levelsys and not levelsys[0]:
@@ -88,8 +99,8 @@ class eventHandler(commands.Cog):
         if xp >= 100:
             level += 1
             #*Get the role reward, if any
-            cursor.execute("SELECT role FROM levelsettings WHERE levelreq = ? AND guild_id = ?", (level,guild.id,))
-            role = cursor.fetchone()
+            query = "SELECT role FROM levelsettings WHERE levelreq = ? AND guild_id = ?"
+            role = self.fetch_one_from_db(query, (level,guild.id,))
             self.updateMemberLvl(author, guild, level)
             msg = await self.setLvlUpMsgTemplate(guild, author, level)
             #*Send the message and set the role reward, if any
@@ -105,7 +116,8 @@ class eventHandler(commands.Cog):
     @tasks.loop(seconds=30)
     async def live_notifs_loop(self):
         #*Gets all the guilds that have twitch streamers
-        guilds = cursor.execute("SELECT guild_id FROM twitch").fetchall()
+        guildsQuery = "SELECT guild_id FROM twitch"
+        guilds = self.fetch_all_from_db(guildsQuery, ())
 
         #*Checks if there are any guilds with twitch streamers
         if guilds is not None:
@@ -132,23 +144,46 @@ class eventHandler(commands.Cog):
 
 #*------------------------------------------------------------------------------------------------------------*#UTILS#*------------------------------------------------------------------------------------------------------------*#
 
-    async def createEmbed(self, member) -> discord.Embed:
+    """
+    The function creates a welcome embed message with a personalized greeting and member information.
+    
+    :param member: The `member` parameter in the `createEmbed` function is an instance of the
+    `discord.Member` class. It represents a member of a Discord server and contains information about
+    that member, such as their name, discriminator, avatar, and ID
+    :return: a discord.Embed object named "MyEmbed".
+    """
+    async def createEmbed(self, member, message, gifURL) -> discord.Embed:
         #*Welcome Embed
         MyEmbed = discord.Embed(
-            title="👋 Welcomeee!", description=f"{member.mention}! Welcome to the Shit Showww!", color=discord.Colour.orange())
+            title="👋 Welcome!", description=f"{member.mention}! {message}", color=discord.Colour.orange())
         MyEmbed.set_author(
             name=f"{member.name} #{member.discriminator}", icon_url=member.display_avatar.url)
         MyEmbed.set_thumbnail(url=member.display_avatar.url)
         MyEmbed.set_image(
-            url="https://media.giphy.com/media/61XS37iBats8J3QLwF/giphy.gif")
+            url=f"{gifURL}")
         MyEmbed.set_footer(text=f"ID: {member.id}")
 
         return MyEmbed
 
+
+    """
+    The `getChannel` function retrieves a channel from the database based on the provided table row,
+    table, and guild ID, and returns the channel if it exists, otherwise it returns None.
+    
+    :param tableRow: The `tableRow` parameter represents the column name in the database table from
+    which you want to retrieve the channel ID
+    :param table: The "table" parameter is the name of the table in the database from which you want to
+    retrieve the channel
+    :param guild_id: The `guild_id` parameter is the ID of the guild (server) that the channel belongs
+    to
+    :return: The function `getChannel` returns the channel object if it exists in the database and is
+    found in the guild, otherwise it returns `None`.
+    """
     async def getChannel(self, tableRow, table, guild_id):
         #*Gets the given Channel from the database
-        cursor.execute("SELECT " + tableRow +" FROM "+ table +" WHERE guild_id = ?", (guild_id,))
-        channelID = cursor.fetchone()
+        query = "SELECT " + tableRow +" FROM "+ table +" WHERE guild_id = ?"
+        channelID = self.fetch_one_from_db(query, (guild_id,))
+
         #*Checks if the channel exists and returns it, if not, it returnd None
         if channelID:
             #*Gets the guild and the channel
@@ -159,7 +194,19 @@ class eventHandler(commands.Cog):
               
         return channel
 
-    #*Sets the default role for a member
+
+    """
+    The function sets a default role for a member in a guild, and if the bot doesn't have the necessary
+    permissions, it prints an error message.
+    
+    :param guild: The "guild" parameter represents the Discord server or guild where the member is
+    located. It is an object that contains information about the guild, such as its name, ID, and other
+    properties
+    :param member: The `member` parameter represents a member of a guild (server) in Discord. It could
+    be an instance of the `discord.Member` class
+    :param role: The `role` parameter is the ID of the role that you want to set as the default role for
+    a member in a guild
+    """
     async def setDefaultRole(self, guild, member, role):
         if role:
             #*Gets the guilds role
@@ -170,13 +217,31 @@ class eventHandler(commands.Cog):
             except discord.HTTPException:
                 print("I don't have the permissions to add the default role.") 
 
-    #*Returns all the twitch users in a guild
+
+    """
+    The function `getTwitchUsers` retrieves all Twitch users associated with a specific guild ID from a
+    database.
+    
+    :param guild_id: The `guild_id` parameter is the ID of a guild or server in a chat platform, such as
+    Discord. It is used to identify a specific server and retrieve the Twitch users associated with that
+    server
+    :return: the list of Twitch users associated with a specific guild ID.
+    """
     async def getTwitchUsers(self, guild_id):
-        twitch_users = cursor.execute("SELECT twitch_user FROM twitch WHERE guild_id = ?", (guild_id[0],))
-        twitch_users = twitch_users.fetchall()
+        twitchQuery = "SELECT twitch_user FROM twitch WHERE guild_id = ?"
+        twitch_users = self.fetch_all_from_db(twitchQuery, (guild_id[0],))
         return twitch_users
 
-    #*Returns true if online, false if not.
+
+    """
+    The `checkuser` function checks if a Twitch user is currently live streaming and returns `True` if
+    they are, `False` otherwise.
+    
+    :param user: The `user` parameter is the username of the Twitch user that you want to check if they
+    are currently live streaming
+    :return: The function `checkuser` returns a boolean value. It returns `True` if the Twitch user
+    specified by the `user` parameter is currently live streaming, and `False` otherwise.
+    """
     async def checkuser(self, user):
         try:
             #*Gets the twitch user's id and sends the request to the twitch API
@@ -197,18 +262,48 @@ class eventHandler(commands.Cog):
                 return False
         except StopAsyncIteration:
             return False
-    #*Returns the streamer's status from the database for comparison
+        
+
+    """
+    The function `getStreamerStatusDB` retrieves the status of a Twitch streamer from a database based
+    on their username and guild ID.
+    
+    :param twitch_user: The `twitch_user` parameter is the username of the Twitch streamer that you want
+    to check the status for. It is expected to be a string
+    :param guild_id: The `guild_id` parameter is the unique identifier for a guild or server in a
+    Discord bot. It is used to specify which guild's data is being queried or updated
+    :return: the streamer status fetched from the database for a given Twitch user and guild ID.
+    """
     async def getStreamerStatusDB(self, twitch_user, guild_id):
-        streamer_status = cursor.execute("SELECT status FROM twitch WHERE twitch_user = ? AND guild_id = ?", (twitch_user[0], guild_id[0]))
-        streamer_status = streamer_status.fetchone()
+        statusQuery = "SELECT status FROM twitch WHERE twitch_user = ? AND guild_id = ?"
+        streamer_status = self.fetch_one_from_db(statusQuery, (twitch_user[0], guild_id[0]))
         return streamer_status
 
-    #*Updates the streamer's status in the database according to the status from the twitch API
-    async def updateStreamerStatus(self, twitch_user, status):
-        cursor.execute("UPDATE twitch SET status = ? WHERE twitch_user = ?", (status, twitch_user))
-        database.commit()
 
-    #*Sends a notification to the guild's twitch channel
+    """
+    The function updates the status of a Twitch streamer in a database.
+    
+    :param twitch_user: The `twitch_user` parameter is the username of the Twitch streamer whose status
+    you want to update
+    :param status: The status parameter is the new status that you want to update for the specified
+    twitch_user
+    """
+    async def updateStreamerStatus(self, twitch_user, status):
+        statusQuery = "UPDATE twitch SET status = ? WHERE twitch_user = ?"
+        self.execute_db_query(statusQuery, (status, twitch_user))
+
+
+    """
+    The function sends a notification to a channel if a streamer's status is not live and updates the
+    streamer's status to live.
+    
+    :param streamer_status: The `streamer_status` parameter is a list that contains the current status
+    of the streamer. It is expected to have only one element, which can be either "not live" or "live"
+    :param channel: The `channel` parameter is the channel or server where the notification will be
+    sent. It is typically an object that represents a text channel in a Discord server
+    :param twitch_user: The `twitch_user` parameter is a list that contains the Twitch username of the
+    streamer
+    """
     async def sendNotificiation(self, streamer_status, channel, twitch_user):
         #*Check if the streamer's status is not live
         if streamer_status[0] == 'not live':
@@ -219,16 +314,55 @@ class eventHandler(commands.Cog):
             actualStatus = 'live'
             await self.updateStreamerStatus(twitch_user[0], actualStatus)
 
-    #*Sets the level system to disabled by default
-    async def setLvlSysDefault(self, guild):
-        cursor.execute("INSERT INTO levelsettings VALUES (?,?,?,?,?)", (False,0,0,None,guild.id))
-        database.commit() 
 
-    #*Sets the level up message template
+    """
+    The function `setLvlSysDefault` inserts default level settings into a database table for a specific
+    guild.
+    
+    :param guild: The "guild" parameter is an object that represents a guild or server in a Discord bot.
+    It typically contains information such as the guild's ID, name, members, channels, etc. In this
+    case, it seems like the "guild" parameter is being used to identify the guild for which the
+    """
+    async def setLvlSysDefault(self, guild):
+        lvlSysQuery = "INSERT INTO levelsettings VALUES (?,?,?,?,?)"
+        self.execute_db_query(lvlSysQuery, (False,0,0,None,guild.id))
+
+    """
+    The function sets default welcome messages for a guild by inserting values into a database
+    table.
+    
+    :param guild: The `guild` parameter represents a Discord server or guild. It is an object that
+    contains information about the guild, such as its name, ID, and other properties. In this code
+    snippet, the `guild` parameter is used to generate a welcome message that includes the guild's
+    name
+    """
+    async def setDefaultWelcomeMessages(self, guild):
+        welcomeMessage = f"Welcome to {guild.name}! Have fun!"
+        welcomeGif = "https://media.giphy.com/media/61XS37iBats8J3QLwF/giphy.gif"
+        welcomeQuery = "INSERT INTO welcome VALUES (?,?,?,?,?)"
+        self.execute_db_query(welcomeQuery, (guild.id, None, welcomeMessage, welcomeMessage,welcomeGif))
+
+
+    """
+    The function `setLvlUpMsgTemplate` retrieves a level up message template from a database for a
+    specific guild, and if there is no template, it sends a default level up message.
+    
+    :param guild: The `guild` parameter represents the Discord server or guild where the level up
+    message is being set
+    :param author: The `author` parameter refers to the user who leveled up. It is an object that
+    represents the user in the Discord server
+    :param level: The `level` parameter in the `setLvlUpMsgTemplate` function represents the level that
+    the user has reached. It is used to customize the level up message by including the level number in
+    the message
+    :return: a message string. If there is a level up message template found in the database for the
+    specified guild, it will be formatted with the author's mention and the level, and then returned. If
+    there is no template found, a default level up message will be returned, mentioning the author and
+    stating their new level.
+    """
     async def setLvlUpMsgTemplate(self, guild, author, level):
         #*Get the level up message template from the database
-        cursor.execute("SELECT message FROM levelsettings WHERE guild_id = ?", (guild.id,))
-        template = cursor.fetchall()
+        messageQuery = "SELECT message FROM levelsettings WHERE guild_id = ?"
+        template = self.fetch_all_from_db(messageQuery, (guild.id,))
 
         #*Check if there is a template, if not, send the default message
         for message in template:
@@ -240,16 +374,29 @@ class eventHandler(commands.Cog):
         msg = f"Congratulations {author.mention}, you have leveled up to level {level}!"
         return msg
 
-    #*Gets the user's xp and level
+    
+    """
+    The `getLvlXp` function retrieves a user's XP and level from a database, and if the user is not in
+    the database, it adds them and sets their XP and level to 0.
+    
+    :param author: The `author` parameter represents the user for whom you want to retrieve the XP and
+    level information. It is expected to be an object that represents a user in your application or bot
+    :param guild: The "guild" parameter represents the guild (server) where the user is located. It is
+    used to identify the specific guild in the database query and retrieve the user's XP and level
+    information specific to that guild
+    :return: The function `getLvlXp` returns the user's xp and level as a tuple.
+    """
     async def getLvlXp(self, author, guild):
         #*Get the user's xp and level from the database
-        xp = cursor.execute("SELECT xp FROM levels WHERE user = ? AND guild = ?", (author.id, guild.id)).fetchone()
-        level = cursor.execute("SELECT level FROM levels WHERE user = ? AND guild = ?", (author.id, guild.id)).fetchone()
+        xpQuery = "SELECT xp FROM levels WHERE user = ? AND guild = ?"
+        xp = self.fetch_one_from_db(xpQuery, (author.id, guild.id))
+        levelQuery = "SELECT level FROM levels WHERE user = ? AND guild = ?"
+        level = self.fetch_one_from_db(levelQuery, (author.id, guild.id))
 
         #*If the user is not in the database, add them
         if not xp or not level:
-            cursor.execute("INSERT INTO levels (level, xp, user, guild) VALUES (?,?,?,?)", (0,0,author.id, guild.id))
-            database.commit()
+            query = "INSERT INTO levels (level, xp, user, guild) VALUES (?,?,?,?)"
+            self.execute_db_query(query, (0,0,author.id, guild.id))
         try:
             #*Get the user's xp and level
             xp = xp[0]
@@ -261,22 +408,63 @@ class eventHandler(commands.Cog):
         
         return xp, level
 
-    #*Sets the user's xp
+
+    """
+    The function `setXp` adds a random amount of XP to a user and updates their XP in the database.
+    
+    :param xp: The `xp` parameter represents the current amount of experience points for the user
+    :param author: The `author` parameter represents the user for whom the XP is being set. It is
+    expected to be an object that contains information about the user, such as their ID, username, and
+    other relevant details
+    :param guild: The "guild" parameter represents the guild (server) where the user is located. It is
+    used to identify the specific guild in the database query and update the user's XP accordingly
+    """
     async def setXp(self, xp, author, guild):
         #*Add a random amount of xp to the user
         xp += random.randint(1, 3)
         #*Update the user's xp in the database
-        cursor.execute("UPDATE levels SET xp = ? WHERE user = ? AND guild = ?", (xp, author.id, guild.id))
-        database.commit()
+        xpQuery = "UPDATE levels SET xp = ? WHERE user = ? AND guild = ?"
+        self.execute_db_query(xpQuery, (xp, author.id, guild.id))
 
-    #*Updates the user's level
+
+    """
+    The function updates the level and XP of a member in a database.
+    
+    :param author: The "author" parameter refers to the user whose level is being updated. It is
+    expected to be an object representing the user, typically obtained from a message or command context
+    :param guild: The "guild" parameter refers to the guild or server where the user is a member. It is
+    used to identify the specific guild in the database when updating the user's level
+    :param level: The level parameter represents the new level that you want to update for the user
+    """
     def updateMemberLvl(self, author, guild, level):
         #*Update the user's level in the database
-        cursor.execute("UPDATE levels SET level = ? WHERE user = ? AND guild = ?", (level, author.id, guild.id))
-        cursor.execute("UPDATE levels SET xp = ? WHERE user = ? AND guild = ?", (0, author.id, guild.id))
-        database.commit()
+        levelQuery = "UPDATE levels SET level = ? WHERE user = ? AND guild = ?"
+        xpQuery = "UPDATE levels SET xp = ? WHERE user = ? AND guild = ?"
+        self.execute_db_query(levelQuery, (level, author.id, guild.id))
+        self.execute_db_query(xpQuery, (0, author.id, guild.id))
 
-    #*Sets the role reward, if any
+
+    """
+    The `setLvlRoleReward` function adds a specified role to a user and sends a message to a specified
+    channel when the user levels up.
+    
+    :param role: The `role` parameter is the ID of the role that you want to assign to the user when
+    they level up
+    :param guild: The `guild` parameter represents the Discord server or guild where the role and user
+    are located
+    :param msg: The `msg` parameter is a string that represents the message to be sent when the user
+    levels up. It can contain placeholders that will be replaced with the appropriate values
+    :param author: The `author` parameter represents the user who leveled up
+    :param level: The `level` parameter represents the level that the user has reached. It is used in
+    the message to indicate the level that the user has leveled up to
+    :param levelupChannel: The `levelupChannel` parameter is a channel object where the level up message
+    will be sent. It is an optional parameter, meaning it can be `None` if there is no specific level up
+    channel specified
+    :param message: The `message` parameter is an instance of the `discord.Message` class. It represents
+    the message that triggered the level up event
+    :return: In this code, the `return` statement is used to exit the function and return control back
+    to the caller. It is used after sending the appropriate messages or handling exceptions.
+    """
     async def setLvlRoleReward(self, role, guild, msg, author, level, levelupChannel, message):
         #*Get the role from the guild
         role = guild.get_role(role)
@@ -298,6 +486,54 @@ class eventHandler(commands.Cog):
             else:
                 await message.channel.send(f"**{author.mention}** has leveled up to level **{level}**! They would have recieved the role {role.mention}, but I don't have the permissions to do so.")
                 return
+
+
+    """
+    The function executes a database query with the given query and parameters, and commits the changes
+    to the database.
+    
+    :param query: The query parameter is a string that represents the SQL query you want to execute on
+    the database. It can be any valid SQL statement, such as SELECT, INSERT, UPDATE, DELETE, etc
+    :param params: The "params" parameter is a tuple or list that contains the values to be substituted
+    into the query. These values are used to replace the placeholders in the query string. The
+    placeholders are typically represented by question marks (?) or percent signs (%s) in the query
+    string. The values in the "params
+    """
+    def execute_db_query(self, query, params):
+        cursor.execute(query, params)
+        database.commit()
+    
+
+    """
+    The function fetches one row from a database using a given query and parameters.
+    
+    :param query: The query parameter is a string that represents the SQL query you want to execute. It
+    can be any valid SQL statement, such as a SELECT, INSERT, UPDATE, or DELETE statement
+    :param params: The "params" parameter is a tuple that contains the values to be substituted into the
+    query string. These values are used to replace the placeholders in the query string, if any
+    :return: the result of the `fetchone()` method, which retrieves the next row from the result set
+    returned by the `execute()` method.
+    """
+    def fetch_one_from_db(self, query, params):
+        cursor.execute(query, params)
+        return cursor.fetchone()
+    
+
+    """
+    The function fetches all rows from a database using a given query and parameters.
+    
+    :param query: The query parameter is a string that represents the SQL query you want to execute. It
+    can be any valid SQL statement, such as a SELECT, INSERT, UPDATE, or DELETE statement
+    :param params: The "params" parameter is a tuple that contains the values to be substituted into the
+    query string. These values are used to replace the placeholders in the query string, if any. The
+    placeholders are typically represented by question marks (?) or percent signs (%s) in the query
+    string
+    :return: the result of the fetchall() method, which is a list of all the rows returned by the query
+    execution.
+    """
+    def fetch_all_from_db(self, query, params):
+        cursor.execute(query, params)
+        return cursor.fetchall()
 
 async def setup(bot) -> None:
     await bot.add_cog(eventHandler(bot))
