@@ -3,25 +3,29 @@ import os
 import sqlite3
 import discord
 from discord.ext import commands
+
+EXTENTIONS = ["cogs.MusicBot","cogs.EventHandler", "cogs.CommandHandler"]
+DATABASE_FILE = "botDB.sql"
+DATABASE = "bot.db"
 class MyBot(commands.Bot):
 
     def __init__(self):
         super().__init__(
-            command_prefix=".",
+            command_prefix=None,
             help_command=None,
             intents=discord.Intents.all(),
             application_id=os.getenv("APPLICATION_ID"))
         self.createDatabase()
 
     async def setup_hook(self):
-        for extention in ["cogs.MusicBot","cogs.EventHandler", "cogs.CommandHandler"]:
+        for extention in EXTENTIONS:
             await bot.load_extension(extention)
         await self.tree.sync()
 
     def createDatabase(self):
-        with open('botDB.sql', 'r') as sql_file:
+        with open(DATABASE_FILE, 'r') as sql_file:
             sql_script = sql_file.read()
-            db = sqlite3.connect('bot.db')
+            db = sqlite3.connect(DATABASE)
             cursor = db.cursor()
             cursor.executescript(sql_script)
             db.commit()

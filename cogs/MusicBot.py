@@ -19,6 +19,7 @@ class Music(commands.Cog):
         #*Wait until the bot is ready
         await self.bot.wait_until_ready()
         #*Create the wavelink node
+        #node: wavelink.Node = wavelink.Node(uri='localhost:2333', password='youshallnotpass', secure=False)
         node: wavelink.Node = wavelink.Node(uri='lavalink:2333', password=os.getenv('LAVALINK_PASSWORD'), secure=False)
         #*Connect the node to the bot
         await wavelink.NodePool.connect(client=self.bot, nodes=[node])
@@ -48,7 +49,8 @@ class Music(commands.Cog):
     @app_commands.describe(search="The song you want to play.")
     @app_commands.checks.has_role("DJ")
     async def play(self, ctx: discord.Interaction, search: str):
-        
+            await ctx.response.defer()
+
             #*Verify if the user is in a voice channel
             await self.checkVoiceChannel(ctx)
             
@@ -61,13 +63,14 @@ class Music(commands.Cog):
             #*Play the song
             await asyncio.sleep(1)  #* wait for 1 second for the vc.is_playing() to be updated
             if not vc.is_playing() and not vc.is_paused():
+                #*Send the embed created in getTrack()
                 await self.playTrack(ctx, vc, track, musicEmbed)
                 return
             else:
                 #*Add the song to the queue
                 await vc.queue.put_wait(track)
                 queueEmbed = await self.createEmbed(track, "Added to queue", ctx)
-                await ctx.response.send_message(embed=queueEmbed)
+                await ctx.followup.send(embed=queueEmbed)
 
  
     #*Pause command, pauses the current song
@@ -157,7 +160,7 @@ class Music(commands.Cog):
         await ctx.response.send_message("Cleared the queue.")
 
     #*Disconnect command, disconnects the bot from the voice channel
-    @app_commands.command(name="disconnect", description="Disconnects the bot from the voice channel.")
+    @app_commands.command(name="leave", description="Disconnects the bot from the voice channel.")
     @app_commands.checks.has_role("DJ")
     async def disconnect(self, ctx: discord.Interaction):
         #*Gets the voice client and checks if it is playing
@@ -189,11 +192,15 @@ class Music(commands.Cog):
 
     @play.error
     async def play_error(self, ctx: discord.Interaction, error):
-        if isinstance(error, app_commands.errors.MissingRole):
-            await ctx.response.send_message("You must have the DJ role to use this command.")
+        # Check if the interaction is still valid
+        if not ctx.response.is_done():
+            if isinstance(error, app_commands.errors.MissingRole):
+                await ctx.response.send_message("You must have the DJ role to use this command.")
+            else:
+                await ctx.response.send_message("Invalid search query.")
+                print(error)
         else:
-            await ctx.response.send_message("Invalid search query.")
-            print(error)
+            print("The interaction is no longer valid.")
 
     @pause.error
     async def pause_error(self, ctx: discord.Interaction, error):
@@ -357,8 +364,9 @@ class Music(commands.Cog):
     :return: nothing (None).
     """
     async def playTrack(self, ctx: discord.Interaction, vc: wavelink.Player, track, musicEmbed):
+
         #*Send the embed created in getTrack()
-        await ctx.response.send_message(embed=musicEmbed)
+        await ctx.followup.send(embed=musicEmbed)
         #*Set the autoplay to True in case theres Queue management involved (for example, if a user plays more than a song or a playlist)
         vc.autoplay = True
         #*If the track is a playlist, play the first song and add the rest to the queue

@@ -7,7 +7,9 @@ from discord.ext import commands, tasks
 import sqlite3
 from easy_pil import *
 
-database = sqlite3.connect("bot.db")
+DATABASE = "bot.db"
+
+database = sqlite3.connect(DATABASE)
 cursor = database.cursor()
 class CommandHandler(commands.Cog):
     
@@ -21,12 +23,6 @@ class CommandHandler(commands.Cog):
     @app_commands.command(name="ping", description="Pings the bot")
     async def ping(self, ctx : discord.Interaction):
         await ctx.response.send_message(f"Pong! 🏓  {self.bot.latency * 1000:.0f}ms")
-
-    #*Sends a scream message
-    @app_commands.command(name="scream", description="The name says it all")
-    @app_commands.checks.has_role("Panik") 
-    async def scream(self, ctx : discord.Interaction):
-        await ctx.response.send_message("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
 
     #*Yells what the user says
     @app_commands.command(name="yell", description="Yells what the user says")
@@ -427,17 +423,8 @@ class CommandHandler(commands.Cog):
         guild_id = ctx.guild.id
         channel_id = welcome_channel.id
 
-        #*Fetches the existing welcome channel, if there is one
-        channelQuery = "SELECT welcome_channel_id FROM welcome WHERE guild_id = ?"
-        existing_welcome_channel = self.fetch_from_db(channelQuery, (guild_id,))
-
-        #*If there's no welcome channel, insert it into the database, otherwise update it
-        if not existing_welcome_channel:
-            query = "INSERT INTO welcome VALUES (?,?)"
-            self.execute_db_query(query, (guild_id, channel_id))
-        else:
-            query = "UPDATE welcome SET welcome_channel_id = ? WHERE guild_id = ?"
-            self.execute_db_query(query, (guild_id, channel_id))
+        query = "UPDATE welcome SET welcome_channel_id = ? WHERE guild_id = ?"
+        self.execute_db_query(query, (channel_id, guild_id))
 
         await ctx.response.send_message(f"Welcome Channel set to {welcome_channel.mention}")
 
@@ -449,6 +436,28 @@ class CommandHandler(commands.Cog):
         self.execute_db_query(query, (ctx.guild.id,))
         #*Sends a message
         await ctx.response.send_message(f"Removed the Welcome Channel!")
+
+    @config.command(name="updatewelcomemessage", description="Updates the Default Welcome Embed Message")
+    @app_commands.describe(message = "The new Welcome Message")
+    async def updateWelcomeMessage(self,ctx : discord.Interaction, *, message : str):
+        query = "UPDATE welcome SET welcome_message = ? WHERE guild_id = ?"
+        self.execute_db_query(query, (message, ctx.guild.id))
+        await ctx.response.send_message(f"Welcome Message Updated!")
+
+    @config.command(name="updatewelcomedm", description="Updates the Default Welcome DM Message")
+    @app_commands.describe(message = "The new Welcome DM Message")
+    async def updateWelcomeDmMessage(self,ctx : discord.Interaction, *, message : str):
+        query = "UPDATE welcome SET welcome_dm = ? WHERE guild_id = ?"
+        self.execute_db_query(query, (message, ctx.guild.id))
+        await ctx.response.send_message(f"Welcome Message DM Updated!")
+
+    @config.command(name="updatewelcomegif", description="Updates the Default Welcome Embed Gif")
+    @app_commands.describe(url = "The new Welcome Gif URL")
+    async def updateWelcomeGif(self,ctx : discord.Interaction, *, url : str):
+        query = "UPDATE welcome SET welcome_gif_url = ? WHERE guild_id = ?"
+        self.execute_db_query(query, (url, ctx.guild.id))
+        await ctx.response.send_message(f"Welcome Embed Gif Updated!")
+
 
     @config.command(name="setlevelupchannel", description="Sets the Level Up Channel")
     @app_commands.describe(levelup_channel = "The channel to set as the Level Up Channel")
@@ -566,7 +575,7 @@ class CommandHandler(commands.Cog):
 
         #*If there's no levelsys, insert it into the database, otherwise update it
         if not levelsys:
-            query = "INSERT INTO levelsettings VALUES (?,?,?,?)"
+            query = "INSERT INTO levelsettings VALUES (?,?,?,?,?)"
             self.execute_db_query(query, (True, 0, 0, None, guild_id))
         else:
             #*If the levelsys is already enabled, send a message 
@@ -589,7 +598,7 @@ class CommandHandler(commands.Cog):
 
         #*If there's no levelsys, insert it into the database, otherwise update it
         if not levelsys:
-            query = "INSERT INTO levelsettings VALUES (?,?,?,?)"
+            query = "INSERT INTO levelsettings VALUES (?,?,?,?,?)"
             self.execute_db_query(query, (False, 0, 0, None, guild_id))
         else:
             #*If the levelsys is already enabled, send a message
@@ -789,6 +798,8 @@ class CommandHandler(commands.Cog):
         em.add_field(name = "Fun Commands", value = "Some Fun Bot Commands", inline = False)
         em.add_field(name = "/ping", value = "The bot replies with Pong!", inline = False)
         em.add_field(name = "/scream", value = "The bot screams", inline = False)
+        em.add_field(name = "/yell", value="The bot yells whatever message you want.", inline=False)
+        em.add_field(name = "/furryalert", value="Sends a Furry Invasion Alert.", inline=False)
         em.add_field(name = "/coinflip", value = "This command lets you flip a coin", inline = False)
         em.add_field(name = "/rps ✌️/🤜/✋", value = "This comand allows to play a game of rock paper scissors with the bot", inline = False)
         em.add_field(name = "/rpsstats", value = "This comand allows you to view your RPS Stats", inline = False)
@@ -807,7 +818,7 @@ class CommandHandler(commands.Cog):
         em.add_field(name = "/resume", value = "This command resumes the paused song!", inline = False)
         em.add_field(name = "/setvolume", value = "This command sets the bot Volume (1-1000)", inline = False)
         em.add_field(name = "/loop", value = "This command loops the current song!", inline = False)
-        em.add_field(name = "/disconnect", value = "This command disconnects the bot from the channel", inline = False)
+        em.add_field(name = "/leave", value = "This command disconnects the bot from the channel", inline = False)
         em.add_field(name = "/queue", value = "This command allows the user to view what songs are in queue!", inline = False)
         return em
     
@@ -835,6 +846,11 @@ class CommandHandler(commands.Cog):
         em.add_field(name = "/config setwelcomechannel", value = "Sets the Welcome Channel!", inline = False)
         em.add_field(name = "/config setlevelupchannel", value = "Sets the Level Up Channel! (Defaults to the channel where the message that triggered the level up was sent if not set)", inline = False)
         em.add_field(name = "/config settwitchnotificationchannel", value = "Sets the Channel for Twitch Notifications!", inline = False)
+        em.add_field(name = "/config updatewelcomemessage", value = "Updates the Default Welcome Embed Message!", inline = False)
+        em.add_field(name = "/config updatewelcomedm", value = "Updates the Default Welcome DM Message!", inline = False)
+        em.add_field(name = "/config updatewelcomegif", value = "Updates the Default Welcome Embed Gif!", inline = False)
+        em.add_field(name = "/config removewelcomechannel", value = "Removes the Channel set for Welcome Messages!", inline = False)
+        em.add_field(name = "/config removestreamchannel", value = "Removes the Channel set for Twitch Notifications!", inline = False)
         em.add_field(name = "/config addstreamer", value = "Adds a Streamer for Twitch Notifications!", inline = False)
         em.add_field(name = "/config removestreamer", value = "Removes a Streamer from Twitch Notifications!", inline = False)
         em.add_field(name = "/config setdefaultrole", value = "Sets the Default Role for new members!", inline = False)
@@ -1073,14 +1089,14 @@ class CommandHandler(commands.Cog):
         return em
     
 
-        """
-        The function `create_leaderboard_embed` creates a Discord embed object for displaying a
-        Rock-Paper-Scissors leaderboard.
-        
-        :param scores: The `scores` parameter is a list of tuples. Each tuple contains two elements: the
-        first element is the user ID, and the second element is the score
-        :return: an instance of the `discord.Embed` class, which represents an embedded message in Discord.
-        """
+    """
+    The function `create_leaderboard_embed` creates a Discord embed object for displaying a
+    Rock-Paper-Scissors leaderboard.
+    
+    :param scores: The `scores` parameter is a list of tuples. Each tuple contains two elements: the
+    first element is the user ID, and the second element is the score
+    :return: an instance of the `discord.Embed` class, which represents an embedded message in Discord.
+    """
     async def create_leaderboard_embed(self, scores):
         em = discord.Embed(title="RPS Leaderboard", description="These is the RPS Leaderboard", color=discord.Colour.orange())
         for score in scores:
@@ -1106,36 +1122,36 @@ class CommandHandler(commands.Cog):
         return None
     
     
-        """
-        The function `purge_messages_by_date` deletes all messages in a channel after a specified date and
-        sends a confirmation message.
-        
-        :param ctx: The `ctx` parameter is an object that represents the context of the command being
-        executed. It contains information about the message, the channel, the server, and the user who
-        triggered the command
-        :param day: The day parameter represents the day of the month for which you want to delete messages.
-        It should be an integer value between 1 and 31
-        :param month: The `month` parameter in the `purge_messages_by_date` function represents the month of
-        the date after which you want to delete messages. It should be an integer value between 1 and 12,
-        representing the months from January to December
-        :param year: The year parameter represents the year of the date after which you want to delete
-        messages
-        """
+    """
+    The function `purge_messages_by_date` deletes all messages in a channel after a specified date and
+    sends a confirmation message.
+    
+    :param ctx: The `ctx` parameter is an object that represents the context of the command being
+    executed. It contains information about the message, the channel, the server, and the user who
+    triggered the command
+    :param day: The day parameter represents the day of the month for which you want to delete messages.
+    It should be an integer value between 1 and 31
+    :param month: The `month` parameter in the `purge_messages_by_date` function represents the month of
+    the date after which you want to delete messages. It should be an integer value between 1 and 12,
+    representing the months from January to December
+    :param year: The year parameter represents the year of the date after which you want to delete
+    messages
+    """
     async def purge_messages_by_date(self, ctx, day, month, year):
         await ctx.channel.purge(after=datetime(year, month, day))
         await ctx.channel.send(f"Deleted all messages after {day}/{month}/{year}")
 
-        """
-        The function `purge_messages_by_limit` deletes a specified number of messages in a channel and
-        sends a message confirming the number of messages deleted.
-        
-        :param ctx: ctx is the interaction object, which contains information about the current state of the
-        bot and the message that triggered the command. It includes attributes such as the channel,
-        user, guild, and message content
-        :param limit: The `limit` parameter in the `purge_messages_by_limit` function is the number of
-        messages to be deleted from the channel. It specifies the maximum number of messages to be
-        deleted, including the command message itself
-        """
+    """
+    The function `purge_messages_by_limit` deletes a specified number of messages in a channel and
+    sends a message confirming the number of messages deleted.
+    
+    :param ctx: ctx is the interaction object, which contains information about the current state of the
+    bot and the message that triggered the command. It includes attributes such as the channel,
+    user, guild, and message content
+    :param limit: The `limit` parameter in the `purge_messages_by_limit` function is the number of
+    messages to be deleted from the channel. It specifies the maximum number of messages to be
+    deleted, including the command message itself
+    """
     async def purge_messages_by_limit(self, ctx, limit):
         await ctx.channel.purge(limit=int(limit) + 1)
         await ctx.channel.send(f"Deleted {limit} messages")
@@ -1156,18 +1172,18 @@ class CommandHandler(commands.Cog):
         cursor.execute(query, params)
         database.commit()
     
-        """
-        The function fetches data from a database using a given query and parameters.
-        
-        :param query: The query parameter is a string that represents the SQL query you want to execute on
-        the database. It only accepts SELECT statements.
-        :param params: The "params" parameter is a tuple that contains the values to be substituted into the
-        query string. These values are used to replace the placeholders in the query string, if any. The
-        placeholders are typically represented by question marks (?) or percent signs (%s) in the query
-        string
-        :return: The fetch_from_db function is returning the result of the cursor.fetchall() method, which
-        is a list of all the rows returned by the query execution.
-        """
+    """
+    The function fetches data from a database using a given query and parameters.
+    
+    :param query: The query parameter is a string that represents the SQL query you want to execute on
+    the database. It only accepts SELECT statements.
+    :param params: The "params" parameter is a tuple that contains the values to be substituted into the
+    query string. These values are used to replace the placeholders in the query string, if any. The
+    placeholders are typically represented by question marks (?) or percent signs (%s) in the query
+    string
+    :return: The fetch_from_db function is returning the result of the cursor.fetchall() method, which
+    is a list of all the rows returned by the query execution.
+    """
     def fetch_from_db(self, query, params):
         cursor.execute(query, params)
         return cursor.fetchall()

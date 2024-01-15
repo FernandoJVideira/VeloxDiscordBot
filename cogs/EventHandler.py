@@ -5,6 +5,7 @@ import requests
 import sqlite3
 from twitchAPI.twitch import Twitch
 from discord.ext import commands, tasks
+    
 
 #* Connect to the database
 database = sqlite3.connect("bot.db")
@@ -38,6 +39,7 @@ class eventHandler(commands.Cog):
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
         await self.setLvlSysDefault(guild)
+        await self.setDefaultWelcomeMessages(guild)
 
     #*When a member joins a guild, send a welcome message
     @commands.Cog.listener()
@@ -51,10 +53,19 @@ class eventHandler(commands.Cog):
         await self.setDefaultRole(guild, member, defaultrole)
 
         dmchannel = await member.create_dm()
-        await dmchannel.send(f"Welcome to **{guild.name}**! Have fun!")
+        query = "SELECT welcome_dm FROM welcome WHERE guild_id = ?"
+        welcomeMessage = self.fetch_one_from_db(query, (guild.id,))
+        if welcomeMessage:
+            await dmchannel.send(welcomeMessage[0])
 
         if guildWelcomeChannel:
-            MyEmbed = await self.createEmbed(member)
+            messageQuery = "SELECT welcome_message FROM welcome WHERE guild_id = ?"
+            gifQuery = "SELECT welcome_gif_url FROM welcome WHERE guild_id = ?"
+
+            welcomeMessage = self.fetch_one_from_db(messageQuery, (guild.id,))
+            welcomeGif = self.fetch_one_from_db(gifQuery, (guild.id,))
+
+            MyEmbed = await self.createEmbed(member,welcomeMessage[0], welcomeGif[0])
             await guildWelcomeChannel.send(member.mention, embed=MyEmbed)
 
     #*When a message is sent, check if the level system is enabled, if so, add xp to the user
@@ -141,15 +152,15 @@ class eventHandler(commands.Cog):
     that member, such as their name, discriminator, avatar, and ID
     :return: a discord.Embed object named "MyEmbed".
     """
-    async def createEmbed(self, member) -> discord.Embed:
+    async def createEmbed(self, member, message, gifURL) -> discord.Embed:
         #*Welcome Embed
         MyEmbed = discord.Embed(
-            title="👋 Welcomeee!", description=f"{member.mention}! Welcome to the Shit Showww!", color=discord.Colour.orange())
+            title="👋 Welcome!", description=f"{member.mention}! {message}", color=discord.Colour.orange())
         MyEmbed.set_author(
             name=f"{member.name} #{member.discriminator}", icon_url=member.display_avatar.url)
         MyEmbed.set_thumbnail(url=member.display_avatar.url)
         MyEmbed.set_image(
-            url="https://media.giphy.com/media/61XS37iBats8J3QLwF/giphy.gif")
+            url=f"{gifURL}")
         MyEmbed.set_footer(text=f"ID: {member.id}")
 
         return MyEmbed
@@ -315,6 +326,21 @@ class eventHandler(commands.Cog):
     async def setLvlSysDefault(self, guild):
         lvlSysQuery = "INSERT INTO levelsettings VALUES (?,?,?,?,?)"
         self.execute_db_query(lvlSysQuery, (False,0,0,None,guild.id))
+
+    """
+    The function sets default welcome messages for a guild by inserting values into a database
+    table.
+    
+    :param guild: The `guild` parameter represents a Discord server or guild. It is an object that
+    contains information about the guild, such as its name, ID, and other properties. In this code
+    snippet, the `guild` parameter is used to generate a welcome message that includes the guild's
+    name
+    """
+    async def setDefaultWelcomeMessages(self, guild):
+        welcomeMessage = f"Welcome to {guild.name}! Have fun!"
+        welcomeGif = "https://media.giphy.com/media/61XS37iBats8J3QLwF/giphy.gif"
+        welcomeQuery = "INSERT INTO welcome VALUES (?,?,?,?,?)"
+        self.execute_db_query(welcomeQuery, (guild.id, None, welcomeMessage, welcomeMessage,welcomeGif))
 
 
     """
