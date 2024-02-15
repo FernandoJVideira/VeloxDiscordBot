@@ -24,6 +24,19 @@ class CommandHandler(commands.Cog):
     async def ping(self, ctx : discord.Interaction):
         await ctx.response.send_message(f"Pong! 🏓  {self.bot.latency * 1000:.0f}ms")
 
+    #*Sends a scream message
+    @app_commands.command(name="scream", description="The name says it all")
+    @app_commands.checks.has_role("Panik") 
+    async def scream(self, ctx : discord.Interaction):
+        await ctx.response.send_message("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+
+    #*Sends a furry alert
+    @app_commands.command(name="furryalert", description="Alerts everyone of an impending furry invasion")
+    @app_commands.checks.has_role("Panik") 
+    async def furryAlert(self, ctx : discord.Interaction):
+        allowed_mentions = discord.AllowedMentions(everyone = True)
+        await ctx.response.send_message(f"{ctx.guild.default_role} FURRY ALERT, IMPENDING FURRY INVASION! ALERT!", allowed_mentions = allowed_mentions)
+
     #*Yells what the user says
     @app_commands.command(name="yell", description="Yells what the user says")
     @app_commands.describe(message = "The message to yell")
@@ -268,20 +281,46 @@ class CommandHandler(commands.Cog):
             await ctx.response.send_message(embed=embed)
 
     @app_commands.command(name="help", description="Shows the bot's commands")
+    @app_commands.describe(option = "The command to get help with")
+    @app_commands.choices(option = [
+        Choice(name = "Fun Commands", value = "fun"),
+        Choice(name = "Music", value = "music"),
+        Choice(name = "Config", value = "config"),
+        Choice(name = "Moderation", value = "moderation"),
+        Choice(name = "Leveling", value = "levelingsys")
+    ])
 
-    async def help(self,ctx : discord.Interaction):
+    async def help(self,ctx : discord.Interaction, option : str = None):
         embeds = []
-        #*Creates the Fun Commands Embed
-        FunEmbed = await self.createFunCmdEmbed()
-        #*Creates the Music Commands Embed
-        MusicEmbed = await self.createMusicCmdEmbed()
-        #*Creates the Mod Commands Embed
-        ModEmbed = await self.createAdminCmdEmbed()
-        #*Creates the Config Commands Embed
-        ConfigEmbed = await self.createConfigCmdEmbed()
-        #*Creates the Leveling Commands Embed
-        LevelingEmbed = await self.createLevelingEmbed()
-        embeds.extend([FunEmbed, MusicEmbed, ConfigEmbed, ModEmbed, LevelingEmbed])
+
+        #*If no option is specified, send the default help message
+        if option is None:
+            FunEmbed = await self.createFunCmdEmbed()
+            MusicEmbed = await self.createMusicCmdEmbed()
+            ModEmbed = await self.createAdminCmdEmbed()
+            ConfigEmbed = await self.createConfigCmdEmbed()
+            LevelingEmbed = await self.createLevelingEmbed()
+            embeds.extend([FunEmbed, MusicEmbed, ConfigEmbed, ModEmbed, LevelingEmbed])
+        #*If the option is fun, send the fun commands
+        elif option == "fun":
+            FunEmbed = await self.createFunCmdEmbed()
+            embeds.append(FunEmbed)
+        #*If the option is music, send the music commands
+        elif option == "music":
+            MusicEmbed = await self.createMusicCmdEmbed()
+            embeds.append(MusicEmbed)
+        #*If the option is config, send the config commands
+        elif option == "config":
+            ConfigEmbed = await self.createConfigCmdEmbed()
+            embeds.append(ConfigEmbed)
+        #*If the option is moderation, send the moderation commands
+        elif option == "moderation":
+            ModEmbed = await self.createAdminCmdEmbed()
+            embeds.append(ModEmbed)
+        #*If the option is leveling, send the leveling commands
+        elif option == "levelingsys":
+            LevelingEmbed = await self.createLevelingEmbed()
+            embeds.append(LevelingEmbed)
 
         #*Creates the dm channel and sends the embeds
         await ctx.response.send_message("Check your DMs!")
