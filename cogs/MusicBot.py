@@ -19,7 +19,7 @@ class Music(commands.Cog):
         #*Wait until the bot is ready
         await self.bot.wait_until_ready()
         #*Create the wavelink node
-        nodes = [wavelink.Node(uri='http://lavalink:2333', password=os.getenv('LAVALINK_PASSWORD'))]
+        nodes = [wavelink.Node(uri=os.getenv('LAVALINK_HOST'), password=os.getenv('LAVALINK_PASSWORD'))]
         #*Connect the node to the bot
         await wavelink.Pool.connect(nodes = nodes, client=self.bot, cache_capacity = 100)
         
@@ -45,9 +45,10 @@ class Music(commands.Cog):
         vc = payload.player
         if not vc:
             return
+        #*Wair for 30 seconds, then check if it is still playing, the queue is empty and the loop is disabled
+        await asyncio.sleep(30)
         #*If the queue is empty and loop is disabled, wait for 30 secs before disconnecting
         if not vc.queue and vc.queue.mode is wavelink.QueueMode.normal and not vc.playing:
-            await asyncio.sleep(30)
             await vc.disconnect()
             return
         
