@@ -21,7 +21,7 @@ API_HEADERS = {
     'Client-ID': client_id,
 }
 
-class eventHandler(commands.Cog):
+class EventHandler(commands.Cog):
 
     #*Constructor
     def __init__(self, bot):

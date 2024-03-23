@@ -19,7 +19,8 @@ class Music(commands.Cog):
         #*Wait until the bot is ready
         await self.bot.wait_until_ready()
         #*Create the wavelink node
-        nodes = [wavelink.Node(uri=os.getenv('LAVALINK_HOST'), password=os.getenv('LAVALINK_PASSWORD'))]
+        #nodes = [wavelink.Node(uri=os.getenv('LAVALINK_HOST'), password=os.getenv('LAVALINK_PASSWORD'))]
+        nodes = [wavelink.Node(uri='http://localhost:2333', password='youshallnotpass')]
         #*Connect the node to the bot
         await wavelink.Pool.connect(nodes = nodes, client=self.bot, cache_capacity = 100)
         
@@ -38,20 +39,7 @@ class Music(commands.Cog):
         embed: discord.Embed = await self.createEmbed(track, "Now Playing 🎵")
         await player.home.send(embed=embed)
 
-    @commands.Cog.listener()
-    #*When the track ends
-    async def on_wavelink_track_end(self, payload: wavelink.TrackEndEventPayload):
-        #*Get the voice client
-        vc = payload.player
-        if not vc:
-            return
-        #*Wair for 30 seconds, then check if it is still playing, the queue is empty and the loop is disabled
-        await asyncio.sleep(30)
-        #*If the queue is empty and loop is disabled, wait for 30 secs before disconnecting
-        if not vc.queue and vc.queue.mode is wavelink.QueueMode.normal and not vc.playing:
-            await vc.disconnect()
-            return
-        
+    #*Commands
     #*Play command, plays a song in the voice channel
     @app_commands.command(name="play", description="Play a song in your voice channel.")
     @app_commands.describe(search="The song you want to play.")
@@ -94,7 +82,6 @@ class Music(commands.Cog):
             if not vc.playing and not vc.paused:
                 await ctx.followup.send(f"Now Playing {track.name if isinstance(track, wavelink.Playlist) else track.title}")
                 await self.playTrack(ctx, vc, track)
-                return
             else:
                 queueEmbed = await self.createEmbed(track, "Added to queue 🎵")
                 await ctx.followup.send(embed=queueEmbed)
@@ -262,8 +249,6 @@ class Music(commands.Cog):
 
 
     #*Utility Functions
-
-
     """
     The function "checkVoiceChannel" checks if the user is in a voice channel or in the same voice
     channel as the bot, and sends an appropriate message if not.
@@ -356,15 +341,15 @@ class Music(commands.Cog):
         await vc.play(vc.queue.get())
     
     
-        """
-        The `getQueueEmbed` function takes a voice client and returns an embed containing the queue of songs
-        with their titles and durations.
-        
-        :param vc: The parameter `vc` is of type `wavelink.Player`. It represents the voice client or player
-        object that is used to control the audio playback
-        :type vc: wavelink.Player
-        :return: an instance of the `discord.Embed` class, which represents an embedded message in Discord.
-        """
+    """
+    The `getQueueEmbed` function takes a voice client and returns an embed containing the queue of songs
+    with their titles and durations.
+    
+    :param vc: The parameter `vc` is of type `wavelink.Player`. It represents the voice client or player
+    object that is used to control the audio playback
+    :type vc: wavelink.Player
+    :return: an instance of the `discord.Embed` class, which represents an embedded message in Discord.
+    """
     async def getQueueEmbed(self, vc: wavelink.Player):
         #*Set a counter and a list of songs
         songCounter = 0

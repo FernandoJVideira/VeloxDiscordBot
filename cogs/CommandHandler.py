@@ -1,3 +1,4 @@
+import re
 import discord
 from discord import app_commands
 from discord.app_commands import Choice
@@ -23,27 +24,7 @@ class CommandHandler(commands.Cog):
     @app_commands.command(name="ping", description="Pings the bot")
     async def ping(self, ctx : discord.Interaction):
         await ctx.response.send_message(f"Pong! 🏓  {self.bot.latency * 1000:.0f}ms")
-
-    #*Sends a scream message
-    @app_commands.command(name="scream", description="The name says it all")
-    @app_commands.checks.has_role("Panik") 
-    async def scream(self, ctx : discord.Interaction):
-        await ctx.response.send_message("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-
-    #*Sends a furry alert
-    @app_commands.command(name="furryalert", description="Alerts everyone of an impending furry invasion")
-    @app_commands.checks.has_role("Panik") 
-    async def furryAlert(self, ctx : discord.Interaction):
-        allowed_mentions = discord.AllowedMentions(everyone = True)
-        await ctx.response.send_message(f"{ctx.guild.default_role} FURRY ALERT, IMPENDING FURRY INVASION! ALERT!", allowed_mentions = allowed_mentions)
-
-    #*Yells what the user says
-    @app_commands.command(name="yell", description="Yells what the user says")
-    @app_commands.describe(message = "The message to yell")
-    @app_commands.checks.has_role("Panik")
-    async def yell(self, ctx : discord.Interaction, *, message : str):
-        await ctx.response.send_message(f"{message.upper()}!")
-
+        
     #*Sends a message with a coinflip
     @app_commands.command(name="coinflip", description="Flips a coin")
     async def coinflip(self,ctx : discord.Interaction):
@@ -56,25 +37,27 @@ class CommandHandler(commands.Cog):
             await ctx.response.send_message("Tails!")
 
     #*Sends a message with a dice roll in NdN+M format
-    @app_commands.command(name = "dice", description="Rolls a dice in NdN + M format. Example: 1d6")
+    @app_commands.command(name = "dice", description="Rolls a dice in NdN + M format. Example: 1d6+2 or 2#d6+2 for 2 separate rolls.")
     @app_commands.describe(dice = "The dice to roll in NdN format. Example: 1d6+2")
     async def dice(self, ctx : discord.Interaction, dice: str):
         try:
-            #* Split the input string by '+'
-            parts = dice.split('+')
-
-            #* If there's a modifier, parse it
-            modifier = int(parts[1]) if len(parts) > 1 else 0
-
-            #* Split the first part by 'd' to get the number of rolls and the limit
-            rolls, limit = map(int, parts[0].split('d'))
+            match = re.match(r'(\d*)#?d(\d+)(\+\d+)?', dice)
+            num_dice = int(match.group(1)) if match.group(1) else 1
+            dice_type = int(match.group(2))
+            modifier = int(match.group(3)[1:]) if match.group(3) else 0
+            messages = []
+            if '#' in dice:
+                for _ in range(num_dice):
+                    roll = random.randint(1, dice_type)
+                    messages.append(f'`{roll + modifier if modifier != 0 else ""}` ⟵ [{roll}] 1d{dice_type} + {modifier}')
+                await ctx.response.send_message('\n'.join(messages))
+            else:
+                rolls = [random.randint(1, dice_type) for _ in range(num_dice)]
+                await ctx.response.send_message(f'`{sum(rolls) + modifier if modifier != 0 else ""}` ⟵ {rolls} {num_dice}d{dice_type} + {modifier}')
         except Exception:
             #*If the format is invalid, send a message
             await ctx.response.send_message('Format has to be in NdN+M!')
             return
-        #* Roll the dice and join the results with a comma in case there's more than one, then send the message
-        result = ', '.join(str(random.randint(1, limit) + modifier) for r in range(rolls))
-        await ctx.response.send_message(result)
 
     #*Allows the user to create custom polls
     @app_commands.command(name="poll", description="Starts a Poll!")
