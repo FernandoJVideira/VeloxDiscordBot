@@ -536,5 +536,5 @@ class EventHandler(commands.Cog):
         return cursor.fetchall()
 
 async def setup(bot) -> None:
-    await bot.add_cog(eventHandler(bot))
+    await bot.add_cog(EventHandler(bot))
 
