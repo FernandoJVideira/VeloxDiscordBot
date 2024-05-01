@@ -1,5 +1,5 @@
 import os
-#from dotenv import load_dotenv   # Uncomment this line for local development
+from dotenv import load_dotenv   # Uncomment this line for local development
 import sqlite3
 import discord
 from discord.ext import commands
@@ -32,5 +32,5 @@ class MyBot(commands.Bot):
             db.close()
 
 bot = MyBot()
-#load_dotenv("./vars.env")   # Uncomment this line for local development
+load_dotenv("./vars.env")   # Uncomment this line for local development
 bot.run(os.getenv("TOKEN"))

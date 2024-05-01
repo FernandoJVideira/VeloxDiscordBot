@@ -23,11 +23,11 @@ API_HEADERS = {
 
 class EventHandler(commands.Cog):
 
-    #*Constructor
+    #* Constructor
     def __init__(self, bot):
         self.bot = bot
 
-    #*executed when the bot is ready
+    #* Executed when the bot is ready
     @commands.Cog.listener()
     async def on_ready(self):
         print("Ready for action!")
@@ -35,17 +35,17 @@ class EventHandler(commands.Cog):
         if not self.live_notifs_loop.is_running():
             self.live_notifs_loop.start()
 
-    #*When the bot joins a guild, set the level system to disabled by default
+    #* When the bot joins a guild, set the level system to disabled by default
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
         await self.setLvlSysDefault(guild)
         await self.setDefaultWelcomeMessages(guild)
 
-    #*When a member joins a guild, send a welcome message
+    #* When a member joins a guild, send a welcome message
     @commands.Cog.listener()
     async def on_member_join(self, member):
         guild = member.guild
-        guildWelcomeChannel = await self.getChannel("welcome_channel_id", "welcome", guild.id)
+        guild_welcome_channel = await self.getChannel("welcome_channel_id", "welcome", guild.id)
 
         query = "SELECT role_id FROM defaultrole WHERE guild_id = ?"
         defaultrole = self.fetch_one_from_db(query, (guild.id,))
@@ -54,21 +54,21 @@ class EventHandler(commands.Cog):
 
         dmchannel = await member.create_dm()
         query = "SELECT welcome_dm FROM welcome WHERE guild_id = ?"
-        welcomeMessage = self.fetch_one_from_db(query, (guild.id,))
-        if welcomeMessage:
-            await dmchannel.send(welcomeMessage[0])
+        welcome_message = self.fetch_one_from_db(query, (guild.id,))
+        if welcome_message:
+            await dmchannel.send(welcome_message[0])
 
-        if guildWelcomeChannel:
-            messageQuery = "SELECT welcome_message FROM welcome WHERE guild_id = ?"
-            gifQuery = "SELECT welcome_gif_url FROM welcome WHERE guild_id = ?"
+        if guild_welcome_channel:
+            message_query = "SELECT welcome_message FROM welcome WHERE guild_id = ?"
+            gif_query = "SELECT welcome_gif_url FROM welcome WHERE guild_id = ?"
 
-            welcomeMessage = self.fetch_one_from_db(messageQuery, (guild.id,))
-            welcomeGif = self.fetch_one_from_db(gifQuery, (guild.id,))
+            welcome_message = self.fetch_one_from_db(message_query, (guild.id,))
+            welcome_gif = self.fetch_one_from_db(gif_query, (guild.id,))
 
-            MyEmbed = await self.createEmbed(member,welcomeMessage[0], welcomeGif[0])
-            await guildWelcomeChannel.send(member.mention, embed=MyEmbed)
+            welcome_embed = await self.createEmbed(member,welcome_message[0], welcome_gif[0])
+            await guild_welcome_channel.send(member.mention, embed=welcome_embed)
 
-    #*When a message is sent, check if the level system is enabled, if so, add xp to the user
+    #* When a message is sent, check if the level system is enabled, if so, add xp to the user
     @commands.Cog.listener()
     async def on_message(self, message):    
         if message.author.bot:
@@ -76,26 +76,26 @@ class EventHandler(commands.Cog):
         author = message.author
         guild = message.guild
         
-        levelUpChannel = await self.getChannel("levelup_channel_id", "levelup", guild.id)        
-        #*Get tge level system status
+        level_up_channel = await self.getChannel("levelup_channel_id", "levelup", guild.id)        
+        #* Get tge level system status
         query = "SELECT levelsys FROM levelsettings WHERE guild_id = ?"
         levelsys = self.fetch_one_from_db(query, (guild.id,))
 
-        #*If the level system is disabled, return
+        #* If the level system is disabled, return
         if levelsys and not levelsys[0]:
             return
         
-        #*Get the user's xp and level
+        #* Get the user's xp and level
         xp, level = await self.getLvlXp(author, guild)
 
-        #*Add xp to the user
+        #* Add xp to the user
         if level < 5:
             await self.setXp(xp, author, guild)
         else:
             rand = random.randint(1, (level//4))
             if rand == 1:
                 await self.setXp(xp, author, guild)
-        #*Check if the user has leveled up, if so, update the user's level and send a message
+        #* Check if the user has leveled up, if so, update the user's level and send a message
         if xp >= 100:
             level += 1
             #*Get the role reward, if any
@@ -103,11 +103,11 @@ class EventHandler(commands.Cog):
             role = self.fetch_one_from_db(query, (level,guild.id,))
             self.updateMemberLvl(author, guild, level)
             msg = await self.setLvlUpMsgTemplate(guild, author, level)
-            #*Send the message and set the role reward, if any
+            #* Send the message and set the role reward, if any
             if role:
-                await self.setLvlRoleReward(role[0], guild, msg, author, level, levelUpChannel, message)
-            if levelUpChannel:
-                await levelUpChannel.send(msg)
+                await self.setLvlRoleReward(role[0], guild, msg, author, level, level_up_channel, message)
+            if level_up_channel:
+                await level_up_channel.send(msg)
             else:
                 await message.channel.send(msg)
 
@@ -115,32 +115,32 @@ class EventHandler(commands.Cog):
 
     @tasks.loop(seconds=30)
     async def live_notifs_loop(self):
-        #*Gets all the guilds that have twitch streamers
-        guildsQuery = "SELECT guild_id FROM twitch"
-        guilds = self.fetch_all_from_db(guildsQuery, ())
+        #* Gets all the guilds that have twitch streamers
+        guilds_query = "SELECT guild_id FROM twitch"
+        guilds = self.fetch_all_from_db(guilds_query, ())
 
-        #*Checks if there are any guilds with twitch streamers
+        #* Checks if there are any guilds with twitch streamers
         if guilds is not None:
             for guild_id in guilds:
-                #*Gets the guild, 'twitch streams' channel
+                #* Gets the guild, 'twitch streams' channel
                 channel = await self.getChannel("twitch_channel_id", "twitch_config", guild_id[0])
-                #*Gets all the streamers in the guild
+                #* Gets all the streamers in the guild
                 twitch_users = await self.getTwitchUsers(guild_id)
 
-                #*For each streamer, check if they are live
+                #* For each streamer, check if they are live
                 for twitch_user in twitch_users:
-                    #*Get the streamer's status from the twitch API (used to compare with the status in the database)
+                    #* Get the streamer's status from the twitch API (used to compare with the status in the database)
                     status = await self.checkuser(twitch_user[0])
-                    #*Get the streamer's status from the database
+                    #* Get the streamer's status from the database
                     streamer_status = await self.getStreamerStatusDB(twitch_user, guild_id)
 
-                    #*If the streamer is live
+                    #* If the streamer is live
                     if status is True:
                         await self.sendNotificiation(streamer_status, channel, twitch_user)
                     else:
-                        #*Update the streamer's status to not live
-                        actualStatus = 'not live'
-                        await self.updateStreamerStatus(twitch_user[0], actualStatus)  
+                        #* Update the streamer's status to not live
+                        actual_status = 'not live'
+                        await self.updateStreamerStatus(twitch_user[0], actual_status)  
 
 #*------------------------------------------------------------------------------------------------------------*#UTILS#*------------------------------------------------------------------------------------------------------------*#
 
@@ -152,18 +152,18 @@ class EventHandler(commands.Cog):
     that member, such as their name, discriminator, avatar, and ID
     :return: a discord.Embed object named "MyEmbed".
     """
-    async def createEmbed(self, member, message, gifURL) -> discord.Embed:
-        #*Welcome Embed
-        MyEmbed = discord.Embed(
+    async def createEmbed(self, member, message, gif_url) -> discord.Embed:
+        #* Welcome Embed
+        embed = discord.Embed(
             title="👋 Welcome!", description=f"{member.mention}! {message}", color=discord.Colour.orange())
-        MyEmbed.set_author(
-            name=f"{member.name} #{member.discriminator}", icon_url=member.display_avatar.url)
-        MyEmbed.set_thumbnail(url=member.display_avatar.url)
-        MyEmbed.set_image(
-            url=f"{gifURL}")
-        MyEmbed.set_footer(text=f"ID: {member.id}")
+        embed.set_author(
+            name=f"{member.name}", icon_url=member.display_avatar.url)
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.set_image(
+            url=f"{gif_url}")
+        embed.set_footer(text=f"ID: {member.id}")
 
-        return MyEmbed
+        return embed
 
 
     """
@@ -179,16 +179,16 @@ class EventHandler(commands.Cog):
     :return: The function `getChannel` returns the channel object if it exists in the database and is
     found in the guild, otherwise it returns `None`.
     """
-    async def getChannel(self, tableRow, table, guild_id):
-        #*Gets the given Channel from the database
-        query = "SELECT " + tableRow +" FROM "+ table +" WHERE guild_id = ?"
-        channelID = self.fetch_one_from_db(query, (guild_id,))
+    async def getChannel(self, table_row, table, guild_id):
+        #* Gets the given Channel from the database
+        query = "SELECT " + table_row +" FROM "+ table +" WHERE guild_id = ?"
+        channel_id = self.fetch_one_from_db(query, (guild_id,))
 
-        #*Checks if the channel exists and returns it, if not, it returnd None
-        if channelID:
-            #*Gets the guild and the channel
+        #* Checks if the channel exists and returns it, if not, it returnd None
+        if channel_id:
+            #* Gets the guild and the channel
             guild = self.bot.get_guild(guild_id)
-            channel = guild.get_channel(channelID[0])
+            channel = guild.get_channel(channel_id[0])
         else:
             channel = None
               
@@ -209,11 +209,11 @@ class EventHandler(commands.Cog):
     """
     async def setDefaultRole(self, guild, member, role):
         if role:
-            #*Gets the guilds role
-            defaultRole = guild.get_role(role[0])
+            #* Gets the guilds role
+            default_role = guild.get_role(role[0])
             try:
-                #*Adds the default role to the member
-                await member.add_roles(defaultRole)
+                #* Adds the default role to the member
+                await member.add_roles(default_role)
             except discord.HTTPException:
                 print("I don't have the permissions to add the default role.") 
 
@@ -228,8 +228,8 @@ class EventHandler(commands.Cog):
     :return: the list of Twitch users associated with a specific guild ID.
     """
     async def getTwitchUsers(self, guild_id):
-        twitchQuery = "SELECT twitch_user FROM twitch WHERE guild_id = ?"
-        twitch_users = self.fetch_all_from_db(twitchQuery, (guild_id[0],))
+        twitch_query = "SELECT twitch_user FROM twitch WHERE guild_id = ?"
+        twitch_users = self.fetch_all_from_db(twitch_query, (guild_id[0],))
         return twitch_users
 
 
@@ -244,21 +244,20 @@ class EventHandler(commands.Cog):
     """
     async def checkuser(self, user):
         try:
-            #*Gets the twitch user's id and sends the request to the twitch API
+            #* Gets the twitch user's id and sends the request to the twitch API
             twitch_user_generator = twitch.get_users(logins=[user])
             twitch_user = await twitch_user_generator.__anext__()
             userid = twitch_user.id
             url = TWITCH_STREAM_API_ENDPOINT.format(userid)
             try:
-                #*Gets the response from the twitch API and checks if the user is live, if not, returns false
+                #* Gets the response from the twitch API and checks if the user is live, if not, returns false
                 req = requests.Session().get(url, headers= API_HEADERS)
                 jsondata = req.json()
                 if jsondata['data'][0]['type'] == "live":
                     return True
                 else:
                     return False
-            except Exception as e:
-                #*print("Error checking user: ", e)
+            except Exception:
                 return False
         except StopAsyncIteration:
             return False
@@ -275,8 +274,8 @@ class EventHandler(commands.Cog):
     :return: the streamer status fetched from the database for a given Twitch user and guild ID.
     """
     async def getStreamerStatusDB(self, twitch_user, guild_id):
-        statusQuery = "SELECT status FROM twitch WHERE twitch_user = ? AND guild_id = ?"
-        streamer_status = self.fetch_one_from_db(statusQuery, (twitch_user[0], guild_id[0]))
+        status_query = "SELECT status FROM twitch WHERE twitch_user = ? AND guild_id = ?"
+        streamer_status = self.fetch_one_from_db(status_query, (twitch_user[0], guild_id[0]))
         return streamer_status
 
 
@@ -289,8 +288,8 @@ class EventHandler(commands.Cog):
     twitch_user
     """
     async def updateStreamerStatus(self, twitch_user, status):
-        statusQuery = "UPDATE twitch SET status = ? WHERE twitch_user = ?"
-        self.execute_db_query(statusQuery, (status, twitch_user))
+        status_query = "UPDATE twitch SET status = ? WHERE twitch_user = ?"
+        self.execute_db_query(status_query, (status, twitch_user))
 
 
     """
@@ -305,14 +304,14 @@ class EventHandler(commands.Cog):
     streamer
     """
     async def sendNotificiation(self, streamer_status, channel, twitch_user):
-        #*Check if the streamer's status is not live
+        #* Check if the streamer's status is not live
         if streamer_status[0] == 'not live':
             await channel.send(
                 f":red_circle: **LIVE**\n @everyone is now streaming on Twitch!"
                 f"\nhttps://www.twitch.tv/{twitch_user[0]}")
-            #*Update the streamer's status to live
-            actualStatus = 'live'
-            await self.updateStreamerStatus(twitch_user[0], actualStatus)
+            #* Update the streamer's status to live
+            actual_status = 'live'
+            await self.updateStreamerStatus(twitch_user[0], actual_status)
 
 
     """
@@ -324,8 +323,8 @@ class EventHandler(commands.Cog):
     case, it seems like the "guild" parameter is being used to identify the guild for which the
     """
     async def setLvlSysDefault(self, guild):
-        lvlSysQuery = "INSERT INTO levelsettings VALUES (?,?,?,?,?)"
-        self.execute_db_query(lvlSysQuery, (False,0,0,None,guild.id))
+        lvlsys_query = "INSERT INTO levelsettings VALUES (?,?,?,?,?)"
+        self.execute_db_query(lvlsys_query, (False,0,0,None,guild.id))
 
     """
     The function sets default welcome messages for a guild by inserting values into a database
@@ -337,10 +336,10 @@ class EventHandler(commands.Cog):
     name
     """
     async def setDefaultWelcomeMessages(self, guild):
-        welcomeMessage = f"Welcome to {guild.name}! Have fun!"
-        welcomeGif = "https://media.giphy.com/media/61XS37iBats8J3QLwF/giphy.gif"
-        welcomeQuery = "INSERT INTO welcome VALUES (?,?,?,?,?)"
-        self.execute_db_query(welcomeQuery, (guild.id, None, welcomeMessage, welcomeMessage,welcomeGif))
+        welcome_message = f"Welcome to {guild.name}! Have fun!"
+        welcome_gif = "https://media.giphy.com/media/61XS37iBats8J3QLwF/giphy.gif"
+        welcome_query = "INSERT INTO welcome VALUES (?,?,?,?,?)"
+        self.execute_db_query(welcome_query, (guild.id, None, welcome_message, welcome_message,welcome_gif))
 
 
     """
@@ -360,13 +359,13 @@ class EventHandler(commands.Cog):
     stating their new level.
     """
     async def setLvlUpMsgTemplate(self, guild, author, level):
-        #*Get the level up message template from the database
-        messageQuery = "SELECT message FROM levelsettings WHERE guild_id = ?"
-        template = self.fetch_all_from_db(messageQuery, (guild.id,))
+        #* Get the level up message template from the database
+        message_query = "SELECT message FROM levelsettings WHERE guild_id = ?"
+        template = self.fetch_all_from_db(message_query, (guild.id,))
 
-        #*Check if there is a template, if not, send the default message
+        #* Check if there is a template, if not, send the default message
         for message in template:
-            #*If there is no template, send the default message
+            #* If there is no template, send the default message
             if message[0] is not None:
                 template = message[0]
                 msg = template.format(user=author.mention, level=level)
@@ -387,22 +386,22 @@ class EventHandler(commands.Cog):
     :return: The function `getLvlXp` returns the user's xp and level as a tuple.
     """
     async def getLvlXp(self, author, guild):
-        #*Get the user's xp and level from the database
-        xpQuery = "SELECT xp FROM levels WHERE user = ? AND guild = ?"
-        xp = self.fetch_one_from_db(xpQuery, (author.id, guild.id))
-        levelQuery = "SELECT level FROM levels WHERE user = ? AND guild = ?"
-        level = self.fetch_one_from_db(levelQuery, (author.id, guild.id))
+        #* Get the user's xp and level from the database
+        xp_query = "SELECT xp FROM levels WHERE user = ? AND guild = ?"
+        xp = self.fetch_one_from_db(xp_query, (author.id, guild.id))
+        level_query = "SELECT level FROM levels WHERE user = ? AND guild = ?"
+        level = self.fetch_one_from_db(level_query, (author.id, guild.id))
 
-        #*If the user is not in the database, add them
+        #* If the user is not in the database, add them
         if not xp or not level:
             query = "INSERT INTO levels (level, xp, user, guild) VALUES (?,?,?,?)"
             self.execute_db_query(query, (0,0,author.id, guild.id))
         try:
-            #*Get the user's xp and level
+            #* Get the user's xp and level
             xp = xp[0]
             level = level[0]
         except TypeError:
-            #*If the user is not in the database, set their xp and level to 0
+            #* If the user is not in the database, set their xp and level to 0
             xp = 0
             level = 0
         
@@ -420,11 +419,11 @@ class EventHandler(commands.Cog):
     used to identify the specific guild in the database query and update the user's XP accordingly
     """
     async def setXp(self, xp, author, guild):
-        #*Add a random amount of xp to the user
+        #* Add a random amount of xp to the user
         xp += random.randint(1, 3)
-        #*Update the user's xp in the database
-        xpQuery = "UPDATE levels SET xp = ? WHERE user = ? AND guild = ?"
-        self.execute_db_query(xpQuery, (xp, author.id, guild.id))
+        #* Update the user's xp in the database
+        xp_query = "UPDATE levels SET xp = ? WHERE user = ? AND guild = ?"
+        self.execute_db_query(xp_query, (xp, author.id, guild.id))
 
 
     """
@@ -437,11 +436,11 @@ class EventHandler(commands.Cog):
     :param level: The level parameter represents the new level that you want to update for the user
     """
     def updateMemberLvl(self, author, guild, level):
-        #*Update the user's level in the database
-        levelQuery = "UPDATE levels SET level = ? WHERE user = ? AND guild = ?"
-        xpQuery = "UPDATE levels SET xp = ? WHERE user = ? AND guild = ?"
-        self.execute_db_query(levelQuery, (level, author.id, guild.id))
-        self.execute_db_query(xpQuery, (0, author.id, guild.id))
+        #* Update the user's level in the database
+        level_query = "UPDATE levels SET level = ? WHERE user = ? AND guild = ?"
+        xp_query = "UPDATE levels SET xp = ? WHERE user = ? AND guild = ?"
+        self.execute_db_query(level_query, (level, author.id, guild.id))
+        self.execute_db_query(xp_query, (0, author.id, guild.id))
 
 
     """
@@ -465,23 +464,23 @@ class EventHandler(commands.Cog):
     :return: In this code, the `return` statement is used to exit the function and return control back
     to the caller. It is used after sending the appropriate messages or handling exceptions.
     """
-    async def setLvlRoleReward(self, role, guild, msg, author, level, levelupChannel, message):
-        #*Get the role from the guild
+    async def setLvlRoleReward(self, role, guild, msg, author, level, levelup_channel, message):
+        #* Get the role from the guild
         role = guild.get_role(role)
         try:
-            #*Add the role to the user
+            #* Add the role to the user
             await author.add_roles(role)
-            #*Send the message to the level up channel, if any, if not, send it to the channel the user leveled up in
-            if levelupChannel:
-                await levelupChannel.send(msg + f" You have recieved the role {role.mention}!")
+            #* Send the message to the level up channel, if any, if not, send it to the channel the user leveled up in
+            if levelup_channel:
+                await levelup_channel.send(msg + f" You have recieved the role {role.mention}!")
                 return
             else:
                 await message.channel.send(msg + f" You have recieved the role {role.mention}!")
                 return
-        #*If the bot doesn't have the permissions to add the role, send a message to the level up channel, if any, if not, send it to the channel the user leveled up in
+        #* If the bot doesn't have the permissions to add the role, send a message to the level up channel, if any, if not, send it to the channel the user leveled up in
         except discord.HTTPException:
-            if levelupChannel:
-                await levelupChannel.send(f"**{author.mention}** has leveled up to level **{level}**! They would have recieved the role {role.mention}, but I don't have the permissions to do so.")
+            if levelup_channel:
+                await levelup_channel.send(f"**{author.mention}** has leveled up to level **{level}**! They would have recieved the role {role.mention}, but I don't have the permissions to do so.")
                 return
             else:
                 await message.channel.send(f"**{author.mention}** has leveled up to level **{level}**! They would have recieved the role {role.mention}, but I don't have the permissions to do so.")
