@@ -61,27 +61,28 @@ class CommandHandler(commands.Cog):
             await ctx.response.send_message("Tails!")
 
     #* Sends a message with a dice roll in NdN+M format
-    @app_commands.command(name = "dice", description="Rolls a dice in NdN + M format. Example: 1d6+2 or 2#d6+2 for 2 separate rolls.")
-    @app_commands.describe(dice = "The dice to roll in NdN format. Example: 1d6+2")
+    @app_commands.command(name = "dice", description="Rolls a dice in NdN + M or N#dN + M format. Example: 1d6+2 or 2#d6+2 for 2 separate rolls.")
+    @app_commands.describe(dice = "The dice to roll.")
     async def dice(self, ctx : discord.Interaction, dice: str):
         try:
-            match = re.match(r'(\d*)#?d(\d+)(\+\d+)?', dice)
-            num_dice = int(match.group(1)) if match.group(1) else 1
-            dice_type = int(match.group(2))
-            modifier = int(match.group(3)[1:]) if match.group(3) else 0
-            modifier_line = f' + {modifier}' if modifier != 0 else ""
+            num_dice, dice_type, modifier, modifier_line = self.parse_dice_str(dice)
             messages = []
             if '#' in dice:
                 for _ in range(num_dice):
-                    roll = random.randint(1, dice_type)
-                    messages.append(f'`{roll + modifier if modifier != 0 else ""}` ⟵ [{roll}] 1d{dice_type} {modifier_line}')
+                    roll = self.roll_dice(dice_type)
+                    roll_str = f'**{roll}**' if roll in [1, dice_type] else str(roll)
+                    total = max(0, roll + modifier)
+                    messages.append(f'` {total} ` ⟵ [{roll_str if roll != 20 or roll != 1 else ""}] 1d{dice_type} {modifier_line}')
                 await ctx.response.send_message('\n'.join(messages))
             else:
-                rolls = [random.randint(1, dice_type) for _ in range(num_dice)]
-                await ctx.response.send_message(f'`{sum(rolls) + modifier}` ⟵ {rolls} {num_dice}d{dice_type} {modifier_line}')
-        except Exception:
+                rolls = [self.roll_dice(dice_type) for _ in range(num_dice)]
+                rolls_str = [f'**{roll}**' if roll in [1, dice_type] else str(roll) for roll in rolls]
+                total = max(0, sum(rolls) + modifier)
+                await ctx.response.send_message(f'` {total} ` ⟵ {rolls_str} {num_dice}d{dice_type} {modifier_line}')
+        except Exception as e:
             #* If the format is invalid, send a message
             await ctx.response.send_message('Format has to be in NdN+M!')
+            print(e.with_traceback())
             return
 
     #* Sends an image with the user's current rank
@@ -95,7 +96,6 @@ class CommandHandler(commands.Cog):
         levelsys_query = LEVELSYS_QUERY
         levelsys = self.fetch_from_db(levelsys_query, (ctx.guild.id,))
 
-        print(levelsys)
 
         if levelsys and levelsys[0] and not levelsys[0][0]:
             await ctx.response.send_message(LVLSYS_DISABLED)
@@ -230,34 +230,30 @@ class CommandHandler(commands.Cog):
 
     async def help(self,ctx : discord.Interaction, option : str = None):
         embeds = []
-        #* If no option is specified, send the default help message
-        if option is None:
-            fun_embed = await self.createFunCmdEmbed()
-            music_embed = await self.createMusicCmdEmbed()
-            mod_embed = await self.createAdminCmdEmbed()
-            config_embed = await self.createConfigCmdEmbed()
-            leveling_embed = await self.createLevelingEmbed()
-            embeds.extend([fun_embed, music_embed, mod_embed, config_embed, leveling_embed])
-        #* If the option is fun, send the fun commands
-        elif option == "fun":
-            fun_embed = await self.createFunCmdEmbed()
-            embeds.append(fun_embed)
-        #* If the option is music, send the music commands
-        elif option == "music":
-            music_embed = await self.createMusicCmdEmbed()
-            embeds.append(music_embed)
-        #* If the option is config, send the config commands
-        elif option == "config":
-            config_embed = await self.createConfigCmdEmbed()
-            embeds.append(config_embed)
-        #* If the option is moderation, send the moderation commands
-        elif option == "moderation":
-            mod_embed = await self.createAdminCmdEmbed()
-            embeds.append(mod_embed)
-        #* If the option is leveling, send the leveling commands
-        elif option == "levelingsys":
-            leveling_embed = await self.createLevelingEmbed()
-            embeds.append(leveling_embed)
+
+        match option:
+            case None:
+                fun_embed = await self.createFunCmdEmbed()
+                music_embed = await self.createMusicCmdEmbed()
+                mod_embed = await self.createAdminCmdEmbed()
+                config_embed = await self.createConfigCmdEmbed()
+                leveling_embed = await self.createLevelingEmbed()
+                embeds.extend([fun_embed, music_embed, mod_embed, config_embed, leveling_embed])
+            case "fun":
+                fun_embed = await self.createFunCmdEmbed()
+                embeds.append(fun_embed)
+            case "music":
+                music_embed = await self.createMusicCmdEmbed()
+                embeds.append(music_embed)
+            case "config":
+                config_embed = await self.createConfigCmdEmbed()
+                embeds.append(config_embed)
+            case "moderation":
+                mod_embed = await self.createAdminCmdEmbed()
+                embeds.append(mod_embed)
+            case "levelingsys":
+                leveling_embed = await self.createLevelingEmbed()
+                embeds.append(leveling_embed)
 
         #* Creates the dm channel and sends the embeds
         await ctx.response.send_message("Check your DMs!")
@@ -790,11 +786,56 @@ class CommandHandler(commands.Cog):
             await ctx.response.send_message(NO_PERMS_MESSAGE)
 
     #*Utility Functions
-        """
-        The above functions create embeds for different categories of commands in a Discord bot.
-        :return: The functions are returning embeds, which are formatted messages that can be sent in a
-        Discord server.
-        """
+
+    """
+        This Python function simulates rolling a dice with a specified number of
+        sides and returns the result.
+        
+        :param dice_type: The `dice_type` parameter in the `roll_dice` function
+        represents the type of dice being rolled. For example, if `dice_type` is 6,
+        it means you are rolling a 6-sided dice (a standard six-sided die). The
+        function will then return a random integer between
+        :type dice_type: int
+        :return: An integer value between 1 and the specified `dice_type`
+        (inclusive) is being returned.
+    """
+    def roll_dice(self, dice_type: int) -> int:
+        return random.randint(1, dice_type)
+    
+    """
+        The function `parse_dice_str` takes a string representing dice notation and
+        parses it to extract the number of dice, type of dice, and any modifier.
+        
+        :param dice: The `parse_dice_str` function takes a string representing a
+        dice roll in the format of "NdM±X", where N is the number of dice, M is the
+        type of dice, and X is an optional modifier
+        :type dice: str
+        :return: The `parse_dice_str` method returns a tuple containing the
+        following elements:
+        1. Number of dice (num_dice)
+        2. Type of dice (dice_type)
+        3. Modifier value (modifier)
+        4. Modifier line as a string indicating the modifier value with a plus or
+        minus sign (modifier_line)
+    """
+    def parse_dice_str(self, dice: str) -> tuple:
+        match = re.match(r'(\d*)\s*#?d(\d+)\s*([-+]?\s*\d+)?', dice)
+        num_dice = int(match.group(1)) if match.group(1) else 1
+        dice_type = int(match.group(2))
+        modifier_str = match.group(3)
+        modifier = int(modifier_str.replace(" ", "")) if modifier_str else 0
+        modifier_line = ""
+        if modifier < 0:
+            modifier_line = f'- {-modifier}'
+        elif modifier > 0:
+            modifier_line = f'+ {modifier}'
+        return num_dice, dice_type, modifier, modifier_line
+        
+    """
+    The above functions create embeds for different categories of commands in a Discord bot.
+    :return: The functions are returning embeds, which are formatted messages that can be sent in a
+    Discord server.
+    """
     async def createFunCmdEmbed(self):
         em = discord.Embed(title = "Fun Commands", description = "These are the bot's Fun commands", color = discord.Colour.orange())
         em.set_thumbnail(url = EMBED_IMAGE)
