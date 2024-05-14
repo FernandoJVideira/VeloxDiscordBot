@@ -29,26 +29,6 @@ class CommandHandler(commands.Cog):
     async def ping(self, ctx : discord.Interaction):
         await ctx.response.send_message(f"Pong! 🏓  {self.bot.latency * 1000:.0f}ms")
 
-    #* Sends a scream message
-    @app_commands.command(name="scream", description="The name says it all")
-    @app_commands.checks.has_role("Panik") 
-    async def scream(self, ctx : discord.Interaction):
-        await ctx.response.send_message("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-
-    #* Sends a furry alert
-    @app_commands.command(name="furryalert", description="Alerts everyone of an impending furry invasion")
-    @app_commands.checks.has_role("Panik") 
-    async def furryAlert(self, ctx : discord.Interaction):
-        allowed_mentions = discord.AllowedMentions(everyone = True)
-        await ctx.response.send_message(f"{ctx.guild.default_role} FURRY ALERT, IMPENDING FURRY INVASION! ALERT!", allowed_mentions = allowed_mentions)
-
-    #* Yells what the user says
-    @app_commands.command(name="yell", description="Yells what the user says")
-    @app_commands.describe(message = "The message to yell")
-    @app_commands.checks.has_role("Panik")
-    async def yell(self, ctx : discord.Interaction, *, message : str):
-        await ctx.response.send_message(f"{message.upper()}!")
-
     #* Sends a message with a coinflip
     @app_commands.command(name="coinflip", description="Flips a coin")
     async def coinflip(self,ctx : discord.Interaction):
