@@ -237,7 +237,7 @@ class EventHandler(commands.Cog):
                 all_rolls.append(roll_str)
             else:
                 total += int(part)
-        return f'` {total} ` ⟵ {all_rolls} {original_dice}'
+        return f'` {max(0,total)} ` ⟵ {all_rolls} {original_dice}'
 
     def calculate_dice_sum(self, rolls, modifier, sign):
         if modifier:
@@ -299,7 +299,7 @@ class EventHandler(commands.Cog):
         num_dice, dice_type, modifier = self.parse_dice_str(dice_str)
         rolls = [self.roll_dice(dice_type) for _ in range(num_dice)]
         roll_strs = [f'**{roll}**' if roll in [1, dice_type] else str(roll) for roll in rolls]
-        return rolls, f'[{", ".join(roll_strs)}]', modifier
+        return rolls, ", ".join(roll_strs), modifier
     
 
     """
