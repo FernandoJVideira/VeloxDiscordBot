@@ -77,7 +77,6 @@ class EventHandler(commands.Cog):
         if pattern_index is not None:
             match pattern_index:
                 case 1 | 0:
-                    num_dice, dice_type, modifier = self.parse_dice_str(message.content)
                     text = await self.sum_rolled_dice(message.content)
                     await message.reply(text)                   
                 case 2:
@@ -225,19 +224,29 @@ class EventHandler(commands.Cog):
         follows:
     """
     async def sum_rolled_dice(self, dice: str) -> str:
-        parts = dice.split('+')
+        original_dice = dice
+        dice = dice.replace('-', '+-')  # Replace '-' with '+-' to keep negative modifiers intact
+        parts = dice.split('+')  # Split the dice string into parts using '+' as delimiter
         total = 0
         all_rolls = []
-        for part in parts:
+        for part in parts:  # Iterate over the parts in steps of 2 to handle each dice roll and its sign separately
             if 'd' in part:
-                dice_strings = re.findall(r'\b\d*d\d+\b', part)
-                for dice_str in dice_strings:
-                    rolls, roll_str, modifier =await self.roll_single_dice(dice_str)
-                    total += sum(rolls) + modifier if modifier else sum(rolls)
-                    all_rolls.append(roll_str)
+                rolls, roll_str, modifier = await self.roll_single_dice(part)
+                sign = '-' if '-' in part else '+'  # Determine the sign based on the part itself
+                total += self.calculate_dice_sum(rolls, modifier, sign)
+                all_rolls.append(roll_str)
             else:
                 total += int(part)
-        return f'` {total} ` ⟵ {all_rolls} {dice}'
+        return f'` {total} ` ⟵ {all_rolls} {original_dice}'
+
+    def calculate_dice_sum(self, rolls, modifier, sign):
+        if modifier:
+            if sign == '-':
+                return sum(rolls) - modifier
+            else:
+                return sum(rolls) + modifier
+        else:
+            return sum(rolls)
 
     
     """
@@ -256,16 +265,19 @@ class EventHandler(commands.Cog):
         num_dice, dice_type = 1, 20  # Default values
         modifier = 0  # Default modifier
 
-        parts = dice_str.split('+')  # Split the dice string into parts
+        parts = dice_str.replace('-', '+-').split('+')  # Split the dice string into parts
 
         for part in parts:
+            part = part.replace(' ', '')  # Remove any spaces in the part
             if 'd' in part:
                 # If the part is another dice roll, parse it separately
-                part_dice, part_type = map(int, part.split('d'))  # Convert the number of dice and the type of dice to integers
-                num_dice = part_dice
-                dice_type = part_type  # Assume all dice have the same type
+                part_dice_str, part_type_str = part.split('d')  # Split the part into the number of dice and the type of dice
+                if part_dice_str and part_type_str:  # Check that both strings are not empty
+                    part_dice, part_type = map(int, (part_dice_str, part_type_str))  # Convert the strings to integers
+                    num_dice = part_dice
+                    dice_type = part_type  # Assume all dice have the same type
             else:
-                modifier += int(part)  # Convert the part to an integer and add it to the modifier
+                modifier = int(part)  # Convert the part to an integer and add it to the modifier
 
         return num_dice, dice_type, modifier
     
