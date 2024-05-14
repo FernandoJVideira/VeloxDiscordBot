@@ -60,30 +60,6 @@ class CommandHandler(commands.Cog):
         if num == 2:
             await ctx.response.send_message("Tails!")
 
-    #* Sends a message with a dice roll in NdN+M format
-    @app_commands.command(name = "dice", description="Rolls a dice in NdN + M or N#dN + M format. Example: 1d6+2 or 2#d6+2 for 2 separate rolls.")
-    @app_commands.describe(dice = "The dice to roll.")
-    async def dice(self, ctx : discord.Interaction, dice: str):
-        try:
-            num_dice, dice_type, modifier, modifier_line = self.parse_dice_str(dice)
-            messages = []
-            if '#' in dice:
-                for _ in range(num_dice):
-                    roll = self.roll_dice(dice_type)
-                    roll_str = f'**{roll}**' if roll in [1, dice_type] else str(roll)
-                    total = max(0, roll + modifier)
-                    messages.append(f'` {total} ` ⟵ [{roll_str if roll != 20 or roll != 1 else ""}] 1d{dice_type} {modifier_line}')
-                await ctx.response.send_message('\n'.join(messages))
-            else:
-                rolls = [self.roll_dice(dice_type) for _ in range(num_dice)]
-                rolls_str = [f'**{roll}**' if roll in [1, dice_type] else str(roll) for roll in rolls]
-                total = max(0, sum(rolls) + modifier)
-                await ctx.response.send_message(f'` {total} ` ⟵ {rolls_str} {num_dice}d{dice_type} {modifier_line}')
-        except Exception as e:
-            #* If the format is invalid, send a message
-            await ctx.response.send_message('Format has to be in NdN+M!')
-            print(e.with_traceback())
-            return
 
     #* Sends an image with the user's current rank
     @app_commands.command(name= "rank", description="Shows your level!")
@@ -802,34 +778,6 @@ class CommandHandler(commands.Cog):
     def roll_dice(self, dice_type: int) -> int:
         return random.randint(1, dice_type)
     
-    """
-        The function `parse_dice_str` takes a string representing dice notation and
-        parses it to extract the number of dice, type of dice, and any modifier.
-        
-        :param dice: The `parse_dice_str` function takes a string representing a
-        dice roll in the format of "NdM±X", where N is the number of dice, M is the
-        type of dice, and X is an optional modifier
-        :type dice: str
-        :return: The `parse_dice_str` method returns a tuple containing the
-        following elements:
-        1. Number of dice (num_dice)
-        2. Type of dice (dice_type)
-        3. Modifier value (modifier)
-        4. Modifier line as a string indicating the modifier value with a plus or
-        minus sign (modifier_line)
-    """
-    def parse_dice_str(self, dice: str) -> tuple:
-        match = re.match(r'(\d*)\s*#?d(\d+)\s*([-+]?\s*\d+)?', dice)
-        num_dice = int(match.group(1)) if match.group(1) else 1
-        dice_type = int(match.group(2))
-        modifier_str = match.group(3)
-        modifier = int(modifier_str.replace(" ", "")) if modifier_str else 0
-        modifier_line = ""
-        if modifier < 0:
-            modifier_line = f'- {-modifier}'
-        elif modifier > 0:
-            modifier_line = f'+ {modifier}'
-        return num_dice, dice_type, modifier, modifier_line
         
     """
     The above functions create embeds for different categories of commands in a Discord bot.
