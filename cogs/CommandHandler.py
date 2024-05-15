@@ -141,7 +141,6 @@ class CommandHandler(commands.Cog):
             score = (score[0] + 1,)
             query = "UPDATE rps SET score = ? WHERE guild_id = ? AND user_id = ?"
             self.execute_db_query(query, (score[0], interaction.guild.id, interaction.user.id))
-            self.update_score(interaction, score[0])
         #* Sends the game result
         await self.send_game_result(interaction, result, hand, bot_hand, score, color)
 
@@ -155,7 +154,7 @@ class CommandHandler(commands.Cog):
         #* If the user has played RPS, create the embed and send it
         if user_score is not None:
             user_score = user_score[0]
-            embed = self.create_score_embed(user_score)
+            embed = await self.create_score_embed(user_score)
             await interaction.response.send_message(embed=embed)
         else:
             #* If the user hasn't played RPS, send a message
@@ -169,7 +168,7 @@ class CommandHandler(commands.Cog):
         
         #* If there's data, create the embed and send it
         if leaderboard_scores is not None:
-            embed = self.create_leaderboard_embed(leaderboard_scores)
+            embed = await self.create_leaderboard_embed(leaderboard_scores)
             await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="help", description="Shows the bot's commands")
