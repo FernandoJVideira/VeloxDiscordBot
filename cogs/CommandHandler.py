@@ -1,4 +1,3 @@
-import re
 import discord
 from discord import app_commands
 from discord.app_commands import Choice
@@ -23,41 +22,40 @@ class CommandHandler(commands.Cog):
         self.bot = bot
 
     #* Fun Commands
-
     #* Ping Command, replies with Pong! and the latency of the bot
     @app_commands.command(name="ping", description="Pings the bot")
-    async def ping(self, ctx : discord.Interaction):
-        await ctx.response.send_message(f"Pong! 🏓  {self.bot.latency * 1000:.0f}ms")
+    async def ping(self, interaction : discord.Interaction):
+        await interaction.response.send_message(f"Pong! 🏓  {self.bot.latency * 1000:.0f}ms")
 
     #* Sends a message with a coinflip
     @app_commands.command(name="coinflip", description="Flips a coin")
-    async def coinflip(self,ctx : discord.Interaction):
+    async def coinflip(self,interaction : discord.Interaction):
         #* Generates a random number between 1 and 2
         num = random.randint(1, 2)
         #* If the number is 1, send Heads!, if it's 2, send Tails!
         if num == 1:
-            await ctx.response.send_message("Heads!")
+            await interaction.response.send_message("Heads!")
         if num == 2:
-            await ctx.response.send_message("Tails!")
+            await interaction.response.send_message("Tails!")
 
 
     #* Sends an image with the user's current rank
     @app_commands.command(name= "rank", description="Shows your level!")
-    async def rank(self, ctx : discord.Interaction, member: discord.Member = None):
+    async def rank(self, interaction : discord.Interaction, member: discord.Member = None):
         #*If no member is specified, use the user
         if member is None:
-            member = ctx.user
+            member = interaction.user
 
         #* Check if leveling system is enabled
         levelsys_query = LEVELSYS_QUERY
-        levelsys = self.fetch_from_db(levelsys_query, (ctx.guild.id,))
+        levelsys = self.fetch_from_db(levelsys_query, (interaction.guild.id,))
 
 
         if levelsys and levelsys[0] and not levelsys[0][0]:
-            await ctx.response.send_message(LVLSYS_DISABLED)
+            await interaction.response.send_message(LVLSYS_DISABLED)
             return
         
-        xp, level = await self.getLvlAndXp(member, ctx.guild)
+        xp, level = await self.getLvlAndXp(member, interaction.guild)
 
         user_data = {
             "name" : member.display_name,
@@ -68,55 +66,55 @@ class CommandHandler(commands.Cog):
         }
 
         file = await self.createRankImage(member, user_data)
-        await ctx.response.send_message(file=file)
+        await interaction.response.send_message(file=file)
 
     #*Sends a message with the rewards for each level
     @app_commands.command(name="rewards", description="Lets you see the rewards for each level")
-    async def rewards(self, ctx : discord.Interaction):
+    async def rewards(self, interaction : discord.Interaction):
         #* Check if leveling system is enabled
         levelsys_query = LEVELSYS_QUERY
-        levelsys = self.fetch_from_db(levelsys_query, (ctx.guild.id,))
+        levelsys = self.fetch_from_db(levelsys_query, (interaction.guild.id,))
 
         if levelsys and levelsys[0] and not levelsys[0][0]:
-            await ctx.response.send_message(LVLSYS_DISABLED)
+            await interaction.response.send_message(LVLSYS_DISABLED)
             return
         
         #* Fetch role rewards
         role_rewards_query = "SELECT * FROM levelsettings WHERE guild_id = ?"
-        role_rewards = self.fetch_from_db(role_rewards_query, (ctx.guild.id,))
+        role_rewards = self.fetch_from_db(role_rewards_query, (interaction.guild.id,))
         role_rewards = role_rewards[1:]
 
         #* If there are no rewards, send a message
         if not role_rewards:
-            await ctx.response.send_message("There are no rewards set for this server!")
+            await interaction.response.send_message("There are no rewards set for this server!")
             return
         #* Create embed for role rewards
-        em = await self.createRoleRewardsEmbrd(ctx, role_rewards)
+        em = await self.createRoleRewardsEmbrd(interaction, role_rewards)
 
-        await ctx.response.send_message(embed=em)
+        await interaction.response.send_message(embed=em)
 
     #* Sends a message with the guild's level leaderboard
     @app_commands.command(name="leaderboard", description="Displays the server's leaderboard")
-    async def leaderboard(self, ctx : discord.Interaction):
+    async def leaderboard(self, interaction : discord.Interaction):
         #* Check if leveling system is enabled
         levelsys_query = LEVELSYS_QUERY
-        levelsys = self.fetch_from_db(levelsys_query, (ctx.guild.id,))
+        levelsys = self.fetch_from_db(levelsys_query, (interaction.guild.id,))
 
         if levelsys and levelsys[0] and not levelsys[0][0]:
-            await ctx.response.send_message(LVLSYS_DISABLED)
+            await interaction.response.send_message(LVLSYS_DISABLED)
             return
         
         #* Fetch leaderboard data
         data_query = "SELECT level, xp, user FROM levels WHERE guild = ? ORDER BY level DESC, xp DESC LIMIT 10"
-        data = self.fetch_from_db(data_query, (ctx.guild.id,))
+        data = self.fetch_from_db(data_query, (interaction.guild.id,))
 
         #*If there's data, create the embed and send it
         if data:
-            em = await self.createLevelLeaderBoardEmbed(data, ctx)
-            await ctx.response.send_message(embed=em)
+            em = await self.createLevelLeaderBoardEmbed(data, interaction)
+            await interaction.response.send_message(embed=em)
             return
 
-        return await ctx.response.send_message("There are no users in the leaderboard!")
+        return await interaction.response.send_message("There are no users in the leaderboard!")
 
     #* Plays Rock Paper Scissors with the user
     @app_commands.command(name="rps", description="Plays Rock Paper Scissors with you")
@@ -126,7 +124,7 @@ class CommandHandler(commands.Cog):
         Choice(name = "✋ - Paper", value = "✋"),
         Choice(name = "🤜 - Rock", value = "🤜"),
         ])
-    async def rps(self,ctx : discord.Interaction, hand : str):
+    async def rps(self,interaction : discord.Interaction, hand : str):
         #* Sets the valid choices and randomly picks the bot's hand
         hands = ["✌️", "✋", "🤜"]
         bot_hand = random.choice(hands)
@@ -134,7 +132,7 @@ class CommandHandler(commands.Cog):
         if hand not in hands:
             return
         #* Gets the user's score 
-        score = self.get_score(ctx)
+        score = self.get_score(interaction)
         #* If the user wins the returned color is green, otherwise it's red
         #* The result is the game result
         result, color = self.determine_game_result(hand, bot_hand)
@@ -142,37 +140,37 @@ class CommandHandler(commands.Cog):
         if result == "You won!":
             score = (score[0] + 1,)
             query = "UPDATE rps SET score = ? WHERE guild_id = ? AND user_id = ?"
-            self.execute_db_query(query, (score[0], ctx.guild.id, ctx.user.id))
-            self.update_score(ctx, score[0])
+            self.execute_db_query(query, (score[0], interaction.guild.id, interaction.user.id))
+            self.update_score(interaction, score[0])
         #* Sends the game result
-        await self.send_game_result(ctx, result, hand, bot_hand, score, color)
+        await self.send_game_result(interaction, result, hand, bot_hand, score, color)
 
     #* Shows the user's RPS Stats
     @app_commands.command(name="rpsstats", description="Shows your RPS Stats")
-    async def rpsstats(self, ctx: discord.Interaction):
+    async def rpsstats(self, interaction: discord.Interaction):
         #* Fetch user's score
         user_score_query = "SELECT score FROM rps WHERE guild_id = ? AND user_id = ?"
-        user_score = self.fetch_from_db(user_score_query, (ctx.guild.id, ctx.user.id))
+        user_score = self.fetch_from_db(user_score_query, (interaction.guild.id, interaction.user.id))
 
         #* If the user has played RPS, create the embed and send it
         if user_score is not None:
             user_score = user_score[0]
             embed = self.create_score_embed(user_score)
-            await ctx.response.send_message(embed=embed)
+            await interaction.response.send_message(embed=embed)
         else:
             #* If the user hasn't played RPS, send a message
-            await ctx.response.send_message("You haven't played RPS yet!")
+            await interaction.response.send_message("You haven't played RPS yet!")
     
     @app_commands.command(name="rpsleaderboard", description="Shows the RPS Leaderboard")
-    async def rpsleaderboard(self, ctx: discord.Interaction):
+    async def rpsleaderboard(self, interaction: discord.Interaction):
         #* Fetch leaderboard scores
         leaderboard_query = "SELECT user_id, score FROM rps WHERE guild_id = ? ORDER BY score DESC"
-        leaderboard_scores = self.fetch_from_db(leaderboard_query, (ctx.guild.id,))
+        leaderboard_scores = self.fetch_from_db(leaderboard_query, (interaction.guild.id,))
         
         #* If there's data, create the embed and send it
         if leaderboard_scores is not None:
             embed = self.create_leaderboard_embed(leaderboard_scores)
-            await ctx.response.send_message(embed=embed)
+            await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="help", description="Shows the bot's commands")
     @app_commands.describe(option = "The command to get help with")
@@ -184,7 +182,7 @@ class CommandHandler(commands.Cog):
         Choice(name = "Leveling", value = "levelingsys")
     ])
 
-    async def help(self,ctx : discord.Interaction, option : str = None):
+    async def help(self,interaction : discord.Interaction, option : str = None):
         embeds = []
 
         match option:
@@ -212,10 +210,10 @@ class CommandHandler(commands.Cog):
                 embeds.append(leveling_embed)
 
         #* Creates the dm channel and sends the embeds
-        await ctx.response.send_message("Check your DMs!")
-        await ctx.user.create_dm()
+        await interaction.response.send_message("Check your DMs!")
+        await interaction.user.create_dm()
         for em in embeds:
-            await ctx.user.dm_channel.send(embed = em)
+            await interaction.user.dm_channel.send(embed = em)
 
 
     #----------------------------------------------//----------------------------------------------#
@@ -226,37 +224,37 @@ class CommandHandler(commands.Cog):
     @serverGroup.command(name="servername", description="Edits the Server Name")
     @app_commands.describe(input = "The new Server Name")
     @app_commands.checks.has_permissions(manage_guild = True)
-    async def servername(self,ctx : discord.Interaction,*,input : str):
-        await ctx.guild.edit(name = input)
-        await ctx.response.send_message(f"Server Name Changed to {input}")
+    async def servername(self,interaction : discord.Interaction,*,input : str):
+        await interaction.guild.edit(name = input)
+        await interaction.response.send_message(f"Server Name Changed to {input}")
 
     @serverGroup.command(name="region", description="Edits the Server Region")
     @app_commands.describe(input = "The new Server Region")
     @app_commands.checks.has_permissions(manage_guild = True)
-    async def region(self,ctx : discord.Interaction,*,input : str):
-        await ctx.guild.edit(region = input)
-        await ctx.response.send_message(f"Server Region Changed to {input}")
+    async def region(self,interaction : discord.Interaction,*,input : str):
+        await interaction.guild.edit(region = input)
+        await interaction.response.send_message(f"Server Region Changed to {input}")
 
     @serverGroup.command(name="createtextchannel", description="Creates a Text Channel")
     @app_commands.describe(input = "The new Text Channel Name")
     @app_commands.checks.has_permissions(manage_guild = True)
-    async def createtextchannel(self,ctx : discord.Interaction,*,input : str):
-        await ctx.guild.create_text_channel(name = input)
-        await ctx.response.send_message(f"Text Channel Created with the name {input}")
+    async def createtextchannel(self,interaction : discord.Interaction,*,input : str):
+        await interaction.guild.create_text_channel(name = input)
+        await interaction.response.send_message(f"Text Channel Created with the name {input}")
 
     @serverGroup.command(name="createvoicechannel", description="Creates a Voice Channel")
     @app_commands.describe(input = "The new Voice Channel Name")
     @app_commands.checks.has_permissions(manage_guild = True)
-    async def createvoicechannel(self,ctx : discord.Interaction,*,input : str):
-        await ctx.guild.create_voice_channel(name = input)
-        await ctx.response.send_message(f"Voice Channel Created with the name {input}")
+    async def createvoicechannel(self,interaction : discord.Interaction,*,input : str):
+        await interaction.guild.create_voice_channel(name = input)
+        await interaction.response.send_message(f"Voice Channel Created with the name {input}")
 
     @serverGroup.command(name="createrole", description="Creates a Role")
     @app_commands.describe(input = "The new Role Name")
     @app_commands.checks.has_permissions(manage_guild = True)
-    async def createrole(self,ctx : discord.Interaction,*,input : str):
-        await ctx.guild.create_role(name = input)
-        await ctx.response.send_message(f"Role Created with the name {input}")
+    async def createrole(self,interaction : discord.Interaction,*,input : str):
+        await interaction.guild.create_role(name = input)
+        await interaction.response.send_message(f"Role Created with the name {input}")
 
     #*----------------------------------------------//----------------------------------------------*#
     #* Moderation Commands  
@@ -266,76 +264,76 @@ class CommandHandler(commands.Cog):
     @moderationGroup.command(name="kick", description="Kicks a user")
     @app_commands.describe(member = "The user to kick")
     @app_commands.checks.has_permissions(kick_members = True)
-    async def kick(self,ctx : discord.Interaction, member : discord.Member, *, reason : str):
-        await ctx.guild.kick(member, reason = reason)
-        await ctx.response.send_message(f"Kicked {member}")
+    async def kick(self,interaction : discord.Interaction, member : discord.Member, *, reason : str):
+        await interaction.guild.kick(member, reason = reason)
+        await interaction.response.send_message(f"Kicked {member}")
 
     @moderationGroup.command(name="ban", description="Bans a user")
     @app_commands.describe(member = "The user to ban", reason = "The reason for the ban")
     @app_commands.checks.has_permissions(ban_members = True)
-    async def ban(self,ctx : discord.Interaction, member : discord.Member, *, reason : str):
-        await ctx.guild.ban(member, reason = reason)
-        await ctx.response.send_message(f"Banned {member}")
+    async def ban(self,interaction : discord.Interaction, member : discord.Member, *, reason : str):
+        await interaction.guild.ban(member, reason = reason)
+        await interaction.response.send_message(f"Banned {member}")
 
     @moderationGroup.command(name="unban", description="Unbans a user")
     @app_commands.describe(user_to_unban = "User to unban")
     @app_commands.checks.has_permissions(ban_members = True)
-    async def unban(self, ctx: discord.Interaction, *, user_to_unban: str):
-        banned_members = await ctx.guild.bans()
+    async def unban(self, interaction: discord.Interaction, *, user_to_unban: str):
+        banned_members = await interaction.guild.bans()
         user = self.find_banned_user(banned_members, user_to_unban)
 
         if user is not None:
-            await ctx.guild.unban(user)
-            await ctx.response.send_message(f"Unbanned {user.name}")
+            await interaction.guild.unban(user)
+            await interaction.response.send_message(f"Unbanned {user.name}")
                 
     @moderationGroup.command(name="purge", description="Clears X amount of messages from a channel")
     @app_commands.describe(message_limit_or_date_indicator = "The amount of messages to delete", day = "The day to delete from", month = "The month to delete from", year = "The year to delete from")
     @app_commands.checks.has_permissions(manage_messages = True)
-    async def purge(self, ctx: discord.Interaction, message_limit_or_date_indicator: int, day: int = None, month: int = None, year: int = datetime.now().year):
+    async def purge(self, interaction: discord.Interaction, message_limit_or_date_indicator: int, day: int = None, month: int = None, year: int = datetime.now().year):
         if str(message_limit_or_date_indicator) == "/":
             if day is None or month is None:
                 return
             else:
-                await ctx.response.send_message(f"Purging messages from {day}/{month}/{year}")
-                await self.purge_messages_by_date(ctx, day, month, year)
+                await interaction.response.send_message(f"Purging messages from {day}/{month}/{year}")
+                await self.purge_messages_by_date(interaction, day, month, year)
         else:
-            await ctx.response.send_message(f"Purging {message_limit_or_date_indicator} messages")
-            await self.purge_messages_by_limit(ctx, message_limit_or_date_indicator)
+            await interaction.response.send_message(f"Purging {message_limit_or_date_indicator} messages")
+            await self.purge_messages_by_limit(interaction, message_limit_or_date_indicator)
 
     @moderationGroup.command(name="mute", description="Mutes a user")
     @app_commands.describe(user = "The user to mute")
     @app_commands.checks.has_permissions(mute_members = True)
-    async def mute(self, ctx : discord.Interaction, user : discord.Member):
+    async def mute(self, interaction : discord.Interaction, user : discord.Member):
         await user.edit(mute = True)
-        await ctx.response.send_message(f"Muted {user}")
+        await interaction.response.send_message(f"Muted {user}")
 
     @moderationGroup.command(name="unmute", description="Unmutes a user")
     @app_commands.describe(user = "The user to unmute")
     @app_commands.checks.has_permissions(mute_members = True)
-    async def unmute(self,ctx : discord.Interaction, user : discord.Member ):
+    async def unmute(self,interaction : discord.Interaction, user : discord.Member ):
         await user.edit(mute = False)
-        await ctx.response.send_message(f"Unmuted {user}")
+        await interaction.response.send_message(f"Unmuted {user}")
 
     @moderationGroup.command(name="deafen", description="Deafens a user")
     @app_commands.describe(user = "The user to deafen")
     @app_commands.checks.has_permissions(deafen_members = True)
-    async def deafen(self,ctx : discord.Interaction, user : discord.Member):
+    async def deafen(self,interaction : discord.Interaction, user : discord.Member):
         await user.edit(deafen = True)
-        await ctx.response.send_message(f"Deafened {user}")
+        await interaction.response.send_message(f"Deafened {user}")
 
     @moderationGroup.command(name="undeafen", description="Undeafens a user")
     @app_commands.describe(user = "The user to undeafen")
     @app_commands.checks.has_permissions(deafen_members = True)
-    async def undeafen(self,ctx : discord.Interaction, user : discord.Member):
+    async def undeafen(self,interaction : discord.Interaction, user : discord.Member):
         await user.edit(deafen = False)
-        await ctx.response.send_message(f"Undeafened {user}")
+        await interaction.response.send_message(f"Undeafened {user}")
 
     @moderationGroup.command(name="voicekick", description="Kicks a user from a Voice Channel")
     @app_commands.describe(user = "The user to kick from the Voice Channel")
     @app_commands.checks.has_permissions(kick_members = True)
-    async def voicekick(self,ctx : discord.Interaction, user : discord.Member):
+    async def voicekick(self,interaction : discord.Interaction, user : discord.Member):
         await user.edit(voice_channel = None)
-        await ctx.response.send_message(f"Kicked {user} from Voice Channel")
+        await interaction.response.send_message(f"Kicked {user} from Voice Channel")
 
 
     #*----------------------------------------------//----------------------------------------------*#
@@ -346,45 +344,45 @@ class CommandHandler(commands.Cog):
     @config.command(name="setwelcomechannel", description="Sets the Welcome Channel")
     @app_commands.describe(welcome_channel = "The channel to set as the Welcome Channel")
     @app_commands.checks.has_permissions(manage_guild = True)
-    async def setwelcomechannel(self, ctx: discord.Interaction, welcome_channel: discord.TextChannel):
+    async def setwelcomechannel(self, interaction: discord.Interaction, welcome_channel: discord.TextChannel):
         #* Gets the guild id and the channel id
-        guild_id = ctx.guild.id
+        guild_id = interaction.guild.id
         channel_id = welcome_channel.id
 
         query = "UPDATE welcome SET welcome_channel_id = ? WHERE guild_id = ?"
         self.execute_db_query(query, (channel_id, guild_id))
 
-        await ctx.response.send_message(f"Welcome Channel set to {welcome_channel.mention}")
+        await interaction.response.send_message(f"Welcome Channel set to {welcome_channel.mention}")
 
     @config.command(name="removewelcomechannel", description="Removes the Channel set for Welcome Messages")
     @app_commands.checks.has_permissions(manage_guild = True)
-    async def removeWelcomeChannel(self,ctx : discord.Interaction):
+    async def removeWelcomeChannel(self,interaction : discord.Interaction):
         #* Deletes the welcome channel from the database
         query = "DELETE FROM welcome WHERE guild_id = ?"
-        self.execute_db_query(query, (ctx.guild.id,))
+        self.execute_db_query(query, (interaction.guild.id,))
         #* Sends a message
-        await ctx.response.send_message("Removed the Welcome Channel!")
+        await interaction.response.send_message("Removed the Welcome Channel!")
 
     @config.command(name="updatewelcomemessage", description="Updates the Default Welcome Embed Message")
     @app_commands.describe(message = "The new Welcome Message")
-    async def updateWelcomeMessage(self,ctx : discord.Interaction, *, message : str):
+    async def updateWelcomeMessage(self,interaction : discord.Interaction, *, message : str):
         query = "UPDATE welcome SET welcome_message = ? WHERE guild_id = ?"
-        self.execute_db_query(query, (message, ctx.guild.id))
-        await ctx.response.send_message("Welcome Message Updated!")
+        self.execute_db_query(query, (message, interaction.guild.id))
+        await interaction.response.send_message("Welcome Message Updated!")
 
     @config.command(name="updatewelcomedm", description="Updates the Default Welcome DM Message")
     @app_commands.describe(message = "The new Welcome DM Message")
-    async def updateWelcomeDmMessage(self,ctx : discord.Interaction, *, message : str):
+    async def updateWelcomeDmMessage(self,interaction : discord.Interaction, *, message : str):
         query = "UPDATE welcome SET welcome_dm = ? WHERE guild_id = ?"
-        self.execute_db_query(query, (message, ctx.guild.id))
-        await ctx.response.send_message("Welcome Message DM Updated!")
+        self.execute_db_query(query, (message, interaction.guild.id))
+        await interaction.response.send_message("Welcome Message DM Updated!")
 
     @config.command(name="updatewelcomegif", description="Updates the Default Welcome Embed Gif")
     @app_commands.describe(url = "The new Welcome Gif URL")
-    async def updateWelcomeGif(self,ctx : discord.Interaction, *, url : str):
+    async def updateWelcomeGif(self,interaction : discord.Interaction, *, url : str):
         query = "UPDATE welcome SET welcome_gif_url = ? WHERE guild_id = ?"
-        self.execute_db_query(query, (url, ctx.guild.id))
-        await ctx.response.send_message("Welcome Embed Gif Updated!")
+        self.execute_db_query(query, (url, interaction.guild.id))
+        await interaction.response.send_message("Welcome Embed Gif Updated!")
 
 
     @config.command(name="setlevelupchannel", description="Sets the Level Up Channel")
@@ -409,12 +407,12 @@ class CommandHandler(commands.Cog):
 
     @config.command(name="removelevelupchannel", description="Removes the Channel set for Level Up Notifications")
     @app_commands.checks.has_permissions(manage_guild = True)
-    async def removeStreamChannel(self,ctx : discord.Interaction):
+    async def removeStreamChannel(self,interaction : discord.Interaction):
         #* Deletes the levelup channel from the database
-        cursor.execute("DELETE FROM levelup WHERE guild_id = ?", (ctx.guild.id,))
+        cursor.execute("DELETE FROM levelup WHERE guild_id = ?", (interaction.guild.id,))
         database.commit()
         #* Sends a message
-        await ctx.response.send_message("Removed the Level Up Channel!")
+        await interaction.response.send_message("Removed the Level Up Channel!")
 
     @config.command(name="settwitchnotificationchannel", description="Sets the Channel for Twitch Notifications")
     @app_commands.describe(twitch_notification_channel = "The channel to set as the Notification Channel")
@@ -438,37 +436,37 @@ class CommandHandler(commands.Cog):
     
     @config.command(name="removestreamchannel", description="Removes the Channel set for Twitch Notifications")
     @app_commands.checks.has_permissions(manage_guild = True)
-    async def removeStreamChannel(self,ctx : discord.Interaction):
+    async def removeStreamChannel(self,interaction : discord.Interaction):
         #* Deletes the twitch channel from the database
         query = "DELETE FROM twitch_config WHERE guild_id = ?"
-        self.execute_db_query(query, (ctx.guild.id,))
+        self.execute_db_query(query, (interaction.guild.id,))
         #* Sends a message
-        await ctx.response.send_message("Removed the Notification Channel!")
+        await interaction.response.send_message("Removed the Notification Channel!")
 
     @config.command(name="addstreamer", description="Adds a Streamer for Twitch Notifications")
     @app_commands.describe(streamer = "The streamer to add")
     @app_commands.checks.has_permissions(manage_guild = True)
-    async def addStreamer(self,ctx : discord.Interaction, streamer : str):
+    async def addStreamer(self,interaction : discord.Interaction, streamer : str):
         #* Fetches the existing twitch channel, if there is one
         not_channel_querry = "SELECT twitch_channel_id FROM twitch_config WHERE guild_id = ?"
-        not_channel = self.fetch_from_db(not_channel_querry, (ctx.guild.id,))
+        not_channel = self.fetch_from_db(not_channel_querry, (interaction.guild.id,))
         #* If there's no twitch channel, send a message, otherwise add the streamer to the database
         if not not_channel:
-            await ctx.response.send_message("Please set a Notification Channel first!")
+            await interaction.response.send_message("Please set a Notification Channel first!")
         else:
             query = "INSERT INTO twitch VALUES (?,?,?)"
-            self.execute_db_query(query, (streamer,"not live", ctx.guild.id))
-            await ctx.response.send_message(f"Added {streamer} to the Streamers List!")
+            self.execute_db_query(query, (streamer,"not live", interaction.guild.id))
+            await interaction.response.send_message(f"Added {streamer} to the Streamers List!")
 
     @config.command(name="removestreamer", description="Removes a Streamer from Twitch Notifications")
     @app_commands.describe(streamer = "The streamer to remove")
     @app_commands.checks.has_permissions(manage_guild = True)
-    async def removeStreamer(self,ctx : discord.Interaction, streamer : str):
+    async def removeStreamer(self,interaction : discord.Interaction, streamer : str):
         #* Deletes the streamer from the database
         query = "DELETE FROM twitch WHERE twitch_user = ? AND guild_id = ?"
-        self.execute_db_query(query, (streamer, ctx.guild.id))
+        self.execute_db_query(query, (streamer, interaction.guild.id))
         #* Sends a message
-        await ctx.response.send_message(f"Removed {streamer} from the Streamers List!")     
+        await interaction.response.send_message(f"Removed {streamer} from the Streamers List!")     
 
     @config.command(name="setdefaultrole", description="Sets the Default Role when a user joins the server")
     @app_commands.describe(default_role = "The role to set as the Default Role")
@@ -517,9 +515,9 @@ class CommandHandler(commands.Cog):
 
     @slvl.command(name="disable", description="Disables the Server Leveling System")
     @app_commands.checks.has_permissions(manage_guild = True)
-    async def disable(self,ctx : discord.Interaction):
+    async def disable(self,interaction : discord.Interaction):
         #* Gets the guild id
-        guild_id = ctx.guild.id
+        guild_id = interaction.guild.id
         #* Fetches the existing levelsys, if there is one
         levelsys_query = LEVELSYS_QUERY
         levelsys = self.fetch_from_db(levelsys_query, (guild_id,))
@@ -531,12 +529,12 @@ class CommandHandler(commands.Cog):
         else:
             #* If the levelsys is already enabled, send a message
             if levelsys and levelsys[0] and not levelsys[0][0]:
-                await ctx.response.send_message("The Leveling System is already disabled!")
+                await interaction.response.send_message("The Leveling System is already disabled!")
                 return
             query = "UPDATE levelsettings SET levelsys = ? WHERE guild_id = ?"
             self.execute_db_query(query, (guild_id, False))
         #* Sends a message
-        await ctx.response.send_message("Leveling System Disabled!")
+        await interaction.response.send_message("Leveling System Disabled!")
 
     @slvl.command(name="setlevelrewards", description="Sets the Level Rewards")
     @app_commands.describe(reward_level = "The level to set the reward for", reward_role = "The role to give as a reward")
@@ -670,76 +668,76 @@ class CommandHandler(commands.Cog):
     #* They simply send a message to the user acording to the error
 
     @scream.error
-    async def scream_error(self, ctx: discord.Interaction, error):
+    async def scream_error(self, interaction: discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingRole):
-            await ctx.response.send_message("You must have the Panik role to use this command.")
+            await interaction.response.send_message("You must have the Panik role to use this command.")
 
     #Moderation Commands ErrorHandlers
     @servername.error
-    async def errorhandler(self, ctx : discord.Interaction, error):
+    async def errorhandler(self, interaction : discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await ctx.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE)
 
     @region.error
-    async def errorhandler(self, ctx : discord.Interaction, error):
+    async def errorhandler(self, interaction : discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await ctx.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE)
         if isinstance(error, app_commands.errors.CommandInvokeError):
-            await ctx.response.send_message("Please choose a valid region!")
+            await interaction.response.send_message("Please choose a valid region!")
 
     @createtextchannel.error
-    async def errorhandler(self, ctx : discord.Interaction, error):
+    async def errorhandler(self, interaction : discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await ctx.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE)
 
     @createvoicechannel.error
-    async def errorhandler(self, ctx : discord.Interaction, error):
+    async def errorhandler(self, interaction : discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await ctx.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE)
 
     @kick.error
-    async def errorhandler(self,ctx : discord.Interaction, error):
+    async def errorhandler(self,interaction : discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await ctx.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE)
 
     @ban.error
-    async def errorhandler(self,ctx : discord.Interaction, error):
+    async def errorhandler(self,interaction : discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await ctx.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE)
     @purge.error
-    async def errorhandler(self,ctx : discord.Interaction, error):
+    async def errorhandler(self,interaction : discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await ctx.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE)
 
     @deafen.error
-    async def errorhandler(self,ctx : discord.Interaction, error):    
+    async def errorhandler(self,interaction : discord.Interaction, error):    
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await ctx.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE)
 
     @undeafen.error
-    async def errorhandler(self,ctx : discord.Interaction, error):    
+    async def errorhandler(self,interaction : discord.Interaction, error):    
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await ctx.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE)
 
     @mute.error
-    async def errorhandler(self,ctx : discord.Interaction, error):    
+    async def errorhandler(self,interaction : discord.Interaction, error):    
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await ctx.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE)
 
     @unmute.error
-    async def errorhandler(self,ctx : discord.Interaction, error):    
+    async def errorhandler(self,interaction : discord.Interaction, error):    
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await ctx.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE)
 
     @voicekick.error
-    async def errorhandler(self,ctx : discord.Interaction, error):    
+    async def errorhandler(self,interaction : discord.Interaction, error):    
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await ctx.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE)
     
     @unban.error
-    async def errorhandler(self,ctx : discord.Interaction, error):    
+    async def errorhandler(self,interaction : discord.Interaction, error):    
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await ctx.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE)
 
     #*Utility Functions
 
@@ -930,21 +928,21 @@ class CommandHandler(commands.Cog):
     """
     The function `createRoleRewardsEmbrd` creates an embed with role rewards for each level.
     
-    :param ctx: The `ctx` parameter is an instance of `discord.Interaction`, which represents the
+    :param interaction: The `interaction` parameter is an instance of `discord.Interaction`, which represents the
     interaction context of a command or event in a Discord bot. It contains information about the user,
     the channel, the guild, and other relevant data related to the interaction
-    :type ctx: discord.Interaction
+    :type interaction: discord.Interaction
     :param role_rewards: role_rewards is a list of tuples, where each tuple contains information about a
     role reward. Each tuple has three elements:
     :return: an embed object (`discord.Embed`) that contains information about the role rewards for each
     level.
     """
-    async def createRoleRewardsEmbrd(self, ctx : discord.Interaction, role_rewards):
+    async def createRoleRewardsEmbrd(self, interaction : discord.Interaction, role_rewards):
         #*Create the embed
         em = discord.Embed(title="Rewards", description="These are the rewards for each level", color=discord.Colour.orange())
         #*Add the rewards to the embed
         for role in role_rewards:
-            role_obj = ctx.guild.get_role(role[1])
+            role_obj = interaction.guild.get_role(role[1])
             role_name = role_obj.mention if role_obj else "Role not found"
             em.add_field(name=f"Level {role[2]}", value=role_name, inline=False)
         return em
@@ -955,19 +953,19 @@ class CommandHandler(commands.Cog):
     
     :param data: The `data` parameter is a list of user data. Each element in the list represents a user
     and contains their level, XP, and user ID
-    :param ctx: ctx is an object that represents the context of the command being executed. It contains
+    :param interaction: interaction is an object that represents the context of the command being executed. It contains
     information such as the message, the author, the server, and other relevant details
     :return: an embed object (`discord.Embed`) that contains the leaderboard information for the
     server's users.
     """
-    async def createLevelLeaderBoardEmbed(self,data,ctx):
+    async def createLevelLeaderBoardEmbed(self,data,interaction):
         #*Gets the number of users in the server
         users_count = len(data)
         #*Creates the embed
         em = discord.Embed(title="Leaderboard", description=f"These are the top {users_count} users in the server", color=discord.Colour.orange())
         #* The enumerate function is used to get the index and user data in the loop
         for index, user_data in enumerate(data, start=1):
-            user = ctx.guild.get_member(user_data[2])
+            user = interaction.guild.get_member(user_data[2])
             field_name = f"{index}. {user.display_name}"
             field_value = f"Level: **{user_data[0]}** | XP: **{user_data[1]}**"
             em.add_field(name=field_name, value=field_value, inline=False)
@@ -978,20 +976,20 @@ class CommandHandler(commands.Cog):
     The `get_score` function retrieves the user's score from the database and if it doesn't exist,
     inserts it into the database with a default value of 0.
     
-    :param ctx: ctx is an object that represents the context of the current command or event. It
+    :param interaction: interaction is an object that represents the context of the current command or event. It
     typically contains information such as the guild (server) ID, user ID, and other relevant data for
     the command or event being executed
     :return: the user's score. If the score is found in the database, it will return the score value. If
     the score is not found, it will insert a score of 0 into the database and return 0.
     """
-    def get_score(self, ctx):
+    def get_score(self, interaction):
         #*Gets the user's score from the database
         score_query = "SELECT score FROM rps WHERE guild_id = ? AND user_id = ?"
-        score = self.fetch_from_db(score_query, (ctx.guild.id, ctx.user.id))
+        score = self.fetch_from_db(score_query, (interaction.guild.id, interaction.user.id))
         #*If there's no score, insert it into the database
         if not score:
             query = "INSERT INTO rps VALUES (?,?,?)"
-            self.execute_db_query(query, (ctx.guild.id, ctx.user.id, 0))
+            self.execute_db_query(query, (interaction.guild.id, interaction.user.id, 0))
             return 0
         else:
             return score[0]
@@ -1021,7 +1019,7 @@ class CommandHandler(commands.Cog):
     The function sends a game result message with the user's and bot's hands, the score, and a specified
     color.
     
-    :param ctx: The `ctx` parameter is an object that represents the context of the command being
+    :param interaction: The `interaction` parameter is an object that represents the context of the command being
     executed. It contains information such as the message that triggered the command, the channel it was
     sent in, the author of the message, and more. It is typically passed as the first parameter to
     command functions in discord.py
@@ -1037,12 +1035,12 @@ class CommandHandler(commands.Cog):
     to visually distinguish different types of messages or to match the theme of the bot. The color
     parameter
     """
-    async def send_game_result(self, ctx, result, user_hand, bot_hand, score, color):
+    async def send_game_result(self, interaction, result, user_hand, bot_hand, score, color):
         embed = discord.Embed(title=result, description="Here's the result of the game", color=color)
         embed.add_field(name="You chose:", value=user_hand, inline=False)
         embed.add_field(name="I chose:", value=bot_hand, inline=False)
         embed.add_field(name="Score:", value=score[0], inline=False)
-        await ctx.response.send_message(embed=embed)
+        await interaction.response.send_message(embed=embed)
 
 
     """
@@ -1096,7 +1094,7 @@ class CommandHandler(commands.Cog):
     The function `purge_messages_by_date` deletes all messages in a channel after a specified date and
     sends a confirmation message.
     
-    :param ctx: The `ctx` parameter is an object that represents the context of the command being
+    :param interaction: The `interaction` parameter is an object that represents the context of the command being
     executed. It contains information about the message, the channel, the server, and the user who
     triggered the command
     :param day: The day parameter represents the day of the month for which you want to delete messages.
@@ -1107,24 +1105,24 @@ class CommandHandler(commands.Cog):
     :param year: The year parameter represents the year of the date after which you want to delete
     messages
     """
-    async def purge_messages_by_date(self, ctx, day, month, year):
-        await ctx.channel.purge(after=datetime(year, month, day))
-        await ctx.channel.send(f"Deleted all messages after {day}/{month}/{year}")
+    async def purge_messages_by_date(self, interaction, day, month, year):
+        await interaction.channel.purge(after=datetime(year, month, day))
+        await interaction.channel.send(f"Deleted all messages after {day}/{month}/{year}")
 
     """
     The function `purge_messages_by_limit` deletes a specified number of messages in a channel and
     sends a message confirming the number of messages deleted.
     
-    :param ctx: ctx is the interaction object, which contains information about the current state of the
+    :param interaction: interaction is the interaction object, which contains information about the current state of the
     bot and the message that triggered the command. It includes attributes such as the channel,
     user, guild, and message content
     :param limit: The `limit` parameter in the `purge_messages_by_limit` function is the number of
     messages to be deleted from the channel. It specifies the maximum number of messages to be
     deleted, including the command message itself
     """
-    async def purge_messages_by_limit(self, ctx, limit):
-        await ctx.channel.purge(limit=int(limit) + 1)
-        await ctx.channel.send(f"Deleted {limit} messages")
+    async def purge_messages_by_limit(self, interaction, limit):
+        await interaction.channel.purge(limit=int(limit) + 1)
+        await interaction.channel.send(f"Deleted {limit} messages")
     
 
     """

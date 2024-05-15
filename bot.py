@@ -1,14 +1,13 @@
 import os
-from dotenv import load_dotenv   # Uncomment this line for local development
+#from dotenv import load_dotenv   # Uncomment this line for local development
 import sqlite3
 import discord
 from discord.ext import commands
 
-EXTENTIONS = ["cogs.MusicBot","cogs.EventHandler", "cogs.CommandHandler"]
+EXTENTIONS = ["cogs.Sync","cogs.MusicBot","cogs.EventHandler", "cogs.CommandHandler"]
 DATABASE_FILE = "botDB.sql"
 DATABASE = "bot.db"
 class MyBot(commands.Bot):
-
     def __init__(self):
         super().__init__(
             command_prefix="!",
@@ -20,7 +19,6 @@ class MyBot(commands.Bot):
     async def setup_hook(self):
         for extention in EXTENTIONS:
             await bot.load_extension(extention)
-        await self.tree.sync()
 
     def createDatabase(self):
         with open(DATABASE_FILE, 'r') as sql_file:
@@ -32,5 +30,5 @@ class MyBot(commands.Bot):
             db.close()
 
 bot = MyBot()
-load_dotenv("./vars.env")   # Uncomment this line for local development
+#load_dotenv("./vars.env")   # Uncomment this line for local development
 bot.run(os.getenv("TOKEN"))
