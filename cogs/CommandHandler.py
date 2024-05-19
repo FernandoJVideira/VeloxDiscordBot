@@ -1,3 +1,4 @@
+import re
 import discord
 from discord import app_commands
 from discord.app_commands import Choice
@@ -37,6 +38,20 @@ class CommandHandler(commands.Cog):
             await interaction.response.send_message("Heads!")
         if num == 2:
             await interaction.response.send_message("Tails!")
+
+    @app_commands.command(name="dice", description="Rolls a dice")
+    async def dice(self,interaction : discord.Interaction, dice: str):
+        pattern_index = self.matches_template(dice.content)
+        if pattern_index is not None:
+            match pattern_index:
+                case 1 | 0:
+                    text = await self.sum_rolled_dice(dice.content)
+                    await interaction.response.send_message(text)                  
+                case 2:
+                    num_dice, dice_type, modifier, modifier_line = self.parse_separate_dice(dice.content) 
+                    messages = await self.roll_multiple_dice(num_dice, dice_type, modifier, modifier_line)
+                    await interaction.response.send_message('\n'.join(messages))
+
 
 
     #* Sends an image with the user's current rank
@@ -741,6 +756,202 @@ class CommandHandler(commands.Cog):
     #*Utility Functions
 
     """
+        The function `sum_rolled_dice` takes a string representing dice rolls and
+        returns the total sum of the rolled dice along with the individual rolls.
+        
+        :param dice: The `dice` parameter in the `sum_rolled_dice` function is a
+        string that represents a dice rolling expression. It can contain multiple
+        parts separated by '+'. Each part can be either a simple integer or a dice
+        rolling expression in the format of 'NdM', where N is the number of
+        :type dice: str
+        :return: The function `sum_rolled_dice` returns a formatted string that
+        includes the total sum of the rolled dice and the individual rolls for each
+        dice part in the input `dice` string. The format of the return string is as
+        follows:
+    """
+    async def sum_rolled_dice(self, dice: str) -> str:
+        original_dice = dice
+        dice = dice.replace('-', '+-')  # Replace '-' with '+-' to keep negative modifiers intact
+        parts = dice.split('+')  # Split the dice string into parts using '+' as delimiter
+        total = 0
+        all_rolls = []
+        for part in parts:  # Iterate over the parts in steps of 2 to handle each dice roll and its sign separately
+            if 'd' in part:
+                rolls, roll_str, modifier = await self.roll_single_dice(part)
+                sign = '-' if '-' in part else '+'  # Determine the sign based on the part itself
+                total += self.calculate_dice_sum(rolls, modifier, sign)
+                all_rolls.append(roll_str)
+            else:
+                total += int(part)
+        return f'` {max(0,total)} ` ⟵ {all_rolls} {original_dice}'
+
+    def calculate_dice_sum(self, rolls, modifier, sign):
+        if modifier:
+            if sign == '-':
+                return sum(rolls) - modifier
+            else:
+                return sum(rolls) + modifier
+        else:
+            return sum(rolls)
+
+    
+    """
+        The function `parse_dice_str` parses a string representing a dice roll into
+        the number of dice, type of dice, and modifier.
+        
+        :param dice_str: Thank you for providing the code snippet. It looks like the
+        `parse_dice_str` method is designed to parse a string representing a dice
+        roll with optional modifiers
+        :type dice_str: str
+        :return: The `parse_dice_str` method returns a tuple containing the number
+        of dice, the type of dice, and the modifier parsed from the input
+        `dice_str`.
+    """
+    def parse_dice_str(self, dice_str: str) -> tuple:
+        num_dice, dice_type = 1, 20  # Default values
+        modifier = 0  # Default modifier
+
+        parts = dice_str.replace('-', '+-').split('+')  # Split the dice string into parts
+
+        for part in parts:
+            part = part.replace(' ', '')  # Remove any spaces in the part
+            if 'd' in part:
+                # If the part is another dice roll, parse it separately
+                part_dice_str, part_type_str = part.split('d')  # Split the part into the number of dice and the type of dice
+                if part_dice_str == '':  # If the number of dice is not specified, assume it is 1
+                    part_dice_str = '1'
+                if part_dice_str and part_type_str:  # Check that both strings are not empty
+                    part_dice, part_type = map(int, (part_dice_str, part_type_str))  # Convert the strings to integers
+                    num_dice = part_dice # Set the number of dice to the parsed value if it is not empty
+                    dice_type = part_type  # Assume all dice have the same type
+            else:
+                modifier = int(part) if part != '' else 0 # Convert the part to an integer and add it to the modifier
+
+        return num_dice, dice_type, modifier
+    
+    """
+        This function rolls a specified number of dice of a certain type and returns
+        the individual rolls, formatted as a string, along with a modifier.
+        
+        :param dice_str: The `dice_str` parameter is a string that represents the
+        dice roll to be performed. It typically follows the format of "NdM+X",
+        where:
+        :type dice_str: str
+        :return: The function `roll_single_dice` returns a tuple containing three
+        elements:
+        1. A list of the individual dice rolls
+        2. A formatted string representing all the dice rolls
+        3. The modifier for the dice roll
+    """
+    async def roll_single_dice(self, dice_str: str):
+        num_dice, dice_type, modifier = self.parse_dice_str(dice_str)
+        rolls = [self.roll_dice(dice_type) for _ in range(num_dice)]
+        roll_strs = [f'**{roll}**' if roll in [1, dice_type] else str(roll) for roll in rolls]
+        return rolls, ", ".join(roll_strs), modifier
+    
+
+    """
+        This function rolls multiple dice of a specified type, applies a modifier,
+        and returns a list of messages describing each roll.
+        
+        :param num_dice: The `num_dice` parameter in the `roll_multiple_dice`
+        function represents the number of dice that will be rolled. This parameter
+        determines how many times the `roll_dice` function will be called to
+        generate random numbers for the dice rolls
+        :param dice_type: The `dice_type` parameter in the `roll_multiple_dice`
+        function represents the type of dice being rolled. For example, if
+        `dice_type` is 6, it means you are rolling a 6-sided dice (a standard
+        six-sided die)
+        :param modifier: The `modifier` parameter in the `roll_multiple_dice`
+        function represents a value that is added to each dice roll before
+        calculating the total. It can be a positive or negative integer that adjusts
+        the final result of each individual dice roll
+        :param modifier_line: The `modifier_line` parameter is used to provide
+        additional information about the modifier being applied to the dice roll. It
+        is a string that can be included in the message generated for each dice roll
+        to give context to the modifier
+        :return: A list of strings representing the results of rolling multiple dice
+        with the specified parameters, including the total value after applying the
+        modifier. Each string in the list contains the formatted result of a single
+        dice roll.
+    """
+    async def roll_multiple_dice(self, num_dice, dice_type, modifier, modifier_line) -> list:
+        messages = []
+        for _ in range(num_dice):
+            roll = self.roll_dice(dice_type)
+            roll_str = f'**{roll}**' if roll in [1, dice_type] else str(roll)
+            total = max(0, roll + modifier)
+            messages.append(f'` {total} ` ⟵ [{roll_str if roll != 20 or roll != 1 else ""}] 1d{dice_type} {modifier_line}')
+        return messages
+
+    """
+        The function `parse_dice_str` takes a string representing dice notation and
+        parses it to extract the number of dice, type of dice, and any modifier.
+        
+        :param dice: The `parse_dice_str` function takes a string representing a
+        dice roll in the format of "NdM±X", where N is the number of dice, M is the
+        type of dice, and X is an optional modifier
+        :type dice: str
+        :return: The `parse_dice_str` method returns a tuple containing the
+        following elements:
+        1. Number of dice (num_dice)
+        2. Type of dice (dice_type)
+        3. Modifier value (modifier)
+        4. Modifier line as a string indicating the modifier value with a plus or
+        minus sign (modifier_line)
+    """
+    def parse_separate_dice(self, dice: str) -> tuple:
+        match = re.match(r'(\d*)\s*#?d(\d+)\s*([-+]?\s*\d+)?', dice)
+        num_dice = int(match.group(1)) if match.group(1) else 1
+        dice_type = int(match.group(2))
+        modifier_str = match.group(3)
+        modifier = int(modifier_str.replace(" ", "")) if modifier_str else 0
+        modifier_line = ""
+        if modifier < 0:
+            modifier_line = f'- {-modifier}'
+        elif modifier > 0:
+            modifier_line = f'+ {modifier}'
+        return num_dice, dice_type, modifier, modifier_line
+
+    """
+        This Python function simulates rolling a dice with a specified number of
+        sides and returns the result.
+        
+        :param dice_type: The `dice_type` parameter in the `roll_dice` function
+        represents the type of dice being rolled. For example, if `dice_type` is 6,
+        it means you are rolling a 6-sided dice (a standard six-sided die). The
+        function will then return a random integer between
+        :type dice_type: int
+        :return: An integer value between 1 and the specified `dice_type`
+        (inclusive) is being returned.
+    """
+    def roll_dice(self, dice_type: int) -> int:
+        return random.randint(1, dice_type)
+
+    """
+    The function `matches_template` in Python checks if a message matches
+    specific patterns related to dice rolling expressions.
+    
+    :param message: The `matches_template` method takes a message as input and
+    checks if it matches any of the predefined patterns. The patterns are
+    designed to match specific formats related to dice rolling in games or
+    simulations
+    :return: The `matches_template` method is returning the index of the pattern
+    that matches the given message after removing spaces. If no pattern matches,
+    it returns `None`.
+    """
+    def matches_template(self, message):
+        patterns = [
+            r"([1-9]\d*)?d[1-9]\d*((\+|\-)([1-9]\d*)?d[0-9]\d*)*",  # Matches NdN+NdN+...+NdN, NdN, and dN where N > 0
+            r"([1-9]\d*)?d[1-9]\d*((\+|\-)([1-9]\d*)?d[1-9]\d*)*(\+|\-)[0-9]\d*",  # Matches NdN+NdN+...+M, NdN+M, and dN+M
+            r"[1-9]\d*#d[1-9]\d*((\+|\-)[0-9]\d*)?",  # Matches N#dN and N#dN+M where N > 0
+        ]
+        for i, pattern in enumerate(patterns):
+            if re.fullmatch(pattern, message.replace(" ", "")):
+                return i
+        return None
+
+    """
         This Python function simulates rolling a dice with a specified number of
         sides and returns the result.
         
@@ -1049,7 +1260,7 @@ class CommandHandler(commands.Cog):
     """
     async def create_score_embed(self, score):
         em = discord.Embed(title="Your RPS Stats", description="These are your RPS Stats", color=discord.Colour.orange())
-        em.add_field(name="Score:", value=score, inline=False)
+        em.add_field(name="Score:", value=score[0], inline=False)
         return em
     
 
