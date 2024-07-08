@@ -45,10 +45,10 @@ class CommandHandler(commands.Cog):
         if pattern_index is not None:
             match pattern_index:
                 case 1 | 0:
-                    text = await self.sum_rolled_dice(dice.content)
+                    text = await self.sum_rolled_dice(dice)
                     await interaction.response.send_message(text)                  
                 case 2:
-                    num_dice, dice_type, modifier, modifier_line = self.parse_separate_dice(dice.content) 
+                    num_dice, dice_type, modifier, modifier_line = self.parse_separate_dice(dice) 
                     messages = await self.roll_multiple_dice(num_dice, dice_type, modifier, modifier_line)
                     await interaction.response.send_message('\n'.join(messages))
 
@@ -468,19 +468,28 @@ class CommandHandler(commands.Cog):
         if not not_channel:
             await interaction.response.send_message("Please set a Notification Channel first!")
         else:
-            query = "INSERT INTO twitch VALUES (?,?,?)"
-            self.execute_db_query(query, (streamer,"not live", interaction.guild.id))
-            await interaction.response.send_message(f"Added {streamer} to the Streamers List!")
+                streamer = self.checkStreamer(streamer)
+                if len(streamer) > 0:
+                    await interaction.response.send_message("This streamer is already in the Streamers List!")
+                    return
+                
+                query = "INSERT INTO twitch VALUES (?,?,?)"
+                self.execute_db_query(query, (streamer,"not live", interaction.guild.id))
+                await interaction.response.send_message(f"Added {streamer} to the Streamers List!")
 
     @config.command(name="removestreamer", description="Removes a Streamer from Twitch Notifications")
     @app_commands.describe(streamer = "The streamer to remove")
     @app_commands.checks.has_permissions(manage_guild = True)
     async def removeStreamer(self,interaction : discord.Interaction, streamer : str):
+
+        if await self.checkStreamer(streamer) is None:
+            await interaction.response.send_message("This streamer is not in the Streamers List!")
+            return
         #* Deletes the streamer from the database
         query = "DELETE FROM twitch WHERE twitch_user = ? AND guild_id = ?"
         self.execute_db_query(query, (streamer, interaction.guild.id))
         #* Sends a message
-        await interaction.response.send_message(f"Removed {streamer} from the Streamers List!")     
+        await interaction.response.send_message(f"Removed {streamer} from the Streamers List!")      
 
     @config.command(name="setdefaultrole", description="Sets the Default Role when a user joins the server")
     @app_commands.describe(default_role = "The role to set as the Default Role")
@@ -754,6 +763,11 @@ class CommandHandler(commands.Cog):
             await interaction.response.send_message(NO_PERMS_MESSAGE)
 
     #*Utility Functions
+
+    async def checkStreamer(self, streamer):
+        #* Fetches the streamer from the database
+        query = "SELECT * FROM twitch WHERE twitch_user = ?"
+        return self.fetch_from_db(query, (streamer,))
 
     """
         The function `sum_rolled_dice` takes a string representing dice rolls and

@@ -4,7 +4,7 @@ import sqlite3
 import discord
 from discord.ext import commands
 
-EXTENTIONS = ["cogs.Sync","cogs.MusicBot","cogs.EventHandler", "cogs.CommandHandler"]
+EXTENTIONS = ["cogs.Sync", "cogs.MusicBot", "cogs.EventHandler", "cogs.CommandHandler"]
 DATABASE_FILE = "botDB.sql"
 DATABASE = "bot.db"
 class MyBot(commands.Bot):

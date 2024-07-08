@@ -2,7 +2,6 @@ import random
 import aiohttp
 import discord
 import sqlite3
-from twitchAPI.twitch import Twitch
 from discord.ext import commands, tasks
     
 #* Connect to the database
@@ -119,12 +118,12 @@ class EventHandler(commands.Cog):
                 #* For each streamer, check if they are live
                 for twitch_user in twitch_users:
                     #* Get the streamer's status from the twitch API (used to compare with the status in the database)
-                    status = await self.checkIfUserIsStreaming(twitch_user[0])
+                    isLive = await self.checkIfUserIsStreaming(twitch_user[0])
                     #* Get the streamer's status from the database
                     streamer_status = await self.getStreamerStatusDB(twitch_user, guild_id)
 
                     #* If the streamer is live
-                    if status is True:
+                    if isLive is True:
                         await self.sendNotificiation(streamer_status, channel, twitch_user)
                     else:
                         #* Update the streamer's status to not live
