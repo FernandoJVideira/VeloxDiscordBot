@@ -1,8 +1,8 @@
-# Umbreon Discord Bot
+# Velox Discord Bot
 An open-source discord bot made in Python and capable of running using Docker.
 
 ## Description
-Umbreon bot is a general-purpose discord bot made in python. It is equiped with commands from moderation to playing music. It does so by connecting to a [Lavalink](https://github.com/lavalink-devs/Lavalink) server and using it to stream the songs. (And yes, it supports Youtube playback).
+Velox bot is a general-purpose discord bot made in python. It is equiped with commands from moderation to playing music. It does so by connecting to a [Lavalink](https://github.com/lavalink-devs/Lavalink) server and using it to stream the songs. (And yes, it supports Youtube playback).
 
 ## Features
 
@@ -24,15 +24,15 @@ For this next phase, you'll have to get Docker installed and running on your mac
 If you're using a Linux/Mac to build the docker image, all you have to do is follow this steps:
 
 ```
-git clone https://github.com/FernandoJVideira/UmbreonBot.git
-cd path_to_repo/UmbreonBot
+git clone https://github.com/FernandoJVideira/VeloxDiscordBot.git
+cd path_to_repo/VeloxDiscordBot
 docker-buildx build --platform <target_pc_platform> -t <your_docker_hub_username>/name_of_your_dockerhub_repo:latest --push
 ```
 On windows (Make sure you have docker installed and are able to use it in the terminal): 
 
 ```
-git clone https://github.com/FernandoJVideira/UmbreonBot.git
-cd path_to_repo/UmbreonBot
+git clone https://github.com/FernandoJVideira/VeloxDiscordBot.git
+cd path_to_repo/VeloxDiscordBot
 docker build --tag <image_name> .
 docker image tag <image_name> <your_docker_hub_username>/<name_of_your_dockerhub_repo>
 docker push <your_docker_hub_username>/<name_of_your_dockerhub_repo>
