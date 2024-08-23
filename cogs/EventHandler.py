@@ -18,6 +18,7 @@ class EventHandler(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print("Ready for action!")
+        await self.set_status()
         if not self.live_notifs_loop.is_running():
             self.live_notifs_loop.start()
 
@@ -26,12 +27,13 @@ class EventHandler(commands.Cog):
     async def on_guild_join(self, guild):
         await self.setLvlSysDefault(guild)
         await self.setDefaultWelcomeMessages(guild)
+        await self.set_status()
 
     #* When a member joins a guild, send a welcome message
     @commands.Cog.listener()
     async def on_member_join(self, member):
         guild = member.guild
-        guild_welcome_channel = await self.getChannel("welcome_channel_id", "welcome", guild.id)
+        guild_welcome_channel = await self.get_channel("welcome_channel_id", "welcome", guild.id)
 
         query = "SELECT role_id FROM defaultrole WHERE guild_id = ?"
         defaultrole = self.fetch_one_from_db(query, (guild.id,))
@@ -51,7 +53,7 @@ class EventHandler(commands.Cog):
             welcome_message = self.fetch_one_from_db(message_query, (guild.id,))
             welcome_gif = self.fetch_one_from_db(gif_query, (guild.id,))
 
-            welcome_embed = await self.createEmbed(member,welcome_message[0], welcome_gif[0])
+            welcome_embed = await self.create_embed(member,welcome_message[0], welcome_gif[0])
             await guild_welcome_channel.send(member.mention, embed=welcome_embed)
 
     #* When a message is sent, check if the level system is enabled, if so, add xp to the user
@@ -66,7 +68,7 @@ class EventHandler(commands.Cog):
         author = message.author
         guild = message.guild
         
-        level_up_channel = await self.getChannel("levelup_channel_id", "levelup", guild.id)        
+        level_up_channel = await self.get_channel("levelup_channel_id", "levelup", guild.id)        
         #* Get tge level system status
         query = "SELECT levelsys FROM levelsettings WHERE guild_id = ?"
         levelsys = self.fetch_one_from_db(query, (guild.id,))
@@ -111,7 +113,7 @@ class EventHandler(commands.Cog):
         if guilds is not None:
             for guild_id in guilds:
                 #* Gets the guild, 'twitch streams' channel
-                channel = await self.getChannel("twitch_channel_id", "twitch_config", guild_id[0])
+                channel = await self.get_channel("twitch_channel_id", "twitch_config", guild_id[0])
                 #* Gets all the streamers in the guild
                 twitch_users = await self.getTwitchUsers(guild_id)
 
@@ -131,6 +133,12 @@ class EventHandler(commands.Cog):
                         await self.updateStreamerStatus(twitch_user[0], actual_status)  
 
 #*------------------------------------------------------------------------------------------------------------*#UTILS#*------------------------------------------------------------------------------------------------------------*#
+    """
+    Sets the status of the bot
+    """
+    async def set_status(self):
+        await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"{len(self.bot.guilds)} servers!"))
+
 
     """
     The function creates a welcome embed message with a personalized greeting and member information.
@@ -140,7 +148,7 @@ class EventHandler(commands.Cog):
     that member, such as their name, discriminator, avatar, and ID
     :return: a discord.Embed object named "MyEmbed".
     """
-    async def createEmbed(self, member, message, gif_url) -> discord.Embed:
+    async def create_embed(self, member, message, gif_url) -> discord.Embed:
         #* Welcome Embed
         embed = discord.Embed(
             title="👋 Welcome!", description=f"{member.mention}! {message}", color=discord.Colour.orange())
@@ -155,7 +163,7 @@ class EventHandler(commands.Cog):
 
 
     """
-    The `getChannel` function retrieves a channel from the database based on the provided table row,
+    The `get_channel` function retrieves a channel from the database based on the provided table row,
     table, and guild ID, and returns the channel if it exists, otherwise it returns None.
     
     :param tableRow: The `tableRow` parameter represents the column name in the database table from
@@ -164,10 +172,10 @@ class EventHandler(commands.Cog):
     retrieve the channel
     :param guild_id: The `guild_id` parameter is the ID of the guild (server) that the channel belongs
     to
-    :return: The function `getChannel` returns the channel object if it exists in the database and is
+    :return: The function `get_channel` returns the channel object if it exists in the database and is
     found in the guild, otherwise it returns `None`.
     """
-    async def getChannel(self, table_row, table, guild_id):
+    async def get_channel(self, table_row, table, guild_id):
         #* Gets the given Channel from the database
         query = "SELECT " + table_row +" FROM "+ table +" WHERE guild_id = ?"
         channel_id = self.fetch_one_from_db(query, (guild_id,))
