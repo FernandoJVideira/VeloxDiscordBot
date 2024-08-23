@@ -29,6 +29,11 @@ class EventHandler(commands.Cog):
         await self.setDefaultWelcomeMessages(guild)
         await self.set_status()
 
+    #* When the bot leaves a guild, set the status to watching the amount of servers
+    @commands.Cog.listener()
+    async def on_guild_remove(self, guild):
+        await self.set_status()
+
     #* When a member joins a guild, send a welcome message
     @commands.Cog.listener()
     async def on_member_join(self, member):
