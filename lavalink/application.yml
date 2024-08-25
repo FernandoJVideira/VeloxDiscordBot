@@ -13,8 +13,8 @@ plugins:
     allowDirectVideoIds: true # Whether just video IDs can match. If false, only complete URLs will be loaded.
     allowDirectPlaylistIds: true # Whether just playlist IDs can match. If false, only complete URLs will be loaded.
     pot:
-      token: "IlhHSkdJIYqZCwQtMywSDxUCECAjExUmIxAdMy5nMQMIeAUgDiMELQ0bEQgOKQIiIBkBIgoGAQgSHQE9MBMAGCgoDwh3Lw89cxoOCAYYAiMCLR8bYnkDb3QO"
-      visitorData: "CgtfUERHWjdYRldZZyi-vIO2BjIiCgJQVBIcEhgSFhMLFBUWFwwYGRobHB0eHw4PIBAREiEgXQ%3D%3D"
+      token: <your token>
+      visitorData: <your visitor data>
     # The clients to use for track loading. See below for a list of valid clients.
     # Clients are queried in the order they are given (left-to-right)
     clients:
@@ -34,7 +34,7 @@ lavalink:
     - dependency: "dev.lavalink.youtube:youtube-plugin:1.7.2"
       snapshot: false # Set to true if you want to use a snapshot version.
   server:
-    password: "ZgQX4TxSZm3"
+    password: <your password>
     sources:
       youtube: false
       bandcamp: true

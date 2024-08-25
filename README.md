@@ -1,7 +1,9 @@
 # Velox Discord Bot
+
 An open-source discord bot made in Python and capable of running using Docker.
 
 ## Description
+
 Velox bot is a general-purpose discord bot made in python. It is equiped with commands from moderation to playing music. It does so by connecting to a [Lavalink](https://github.com/lavalink-devs/Lavalink) server and using it to stream the songs. (And yes, it supports Youtube playback).
 
 ## Features
@@ -13,40 +15,58 @@ Velox bot is a general-purpose discord bot made in python. It is equiped with co
 - Fun Commands (RPS, Scream, Yell, Poll, etc)
 
 ## Installation
+
 Head to [Discord Developer Portal](https://discord.com/developers/applications), login and create an application, then, head to the "Bot" section, copy the Bot's token and paste it in the DockerFile. Next you should head to [Twitch Developers](https://dev.twitch.tv/login), after login, register a new aplication as "Aplication Integration", following that, you'll want to copy the client id and client secret and paste them in the DockerFile as well as the auth token.
 
-If you don't have a lavalink node to connect to, just follow the steps at the official [Lavalink](https://github.com/lavalink-devs/Lavalink) github repo and you'll be good to go. (My advice is to run both the bot and the lavalink server is the same machine but using Docker containers)
+If you don't have a lavalink node to connect to, just follow the steps at the official [Lavalink](https://github.com/lavalink-devs/Lavalink) github repo and you'll be good to go.
 
-Next you'll need a [DockerHub](https://hub.docker.com) account to be able to upload and run the bot's immage.
+Other option is to cd into the lavalink folder and run `docker-compose up -d`. That will run the lavalink server on a docker container on port 2333.
+
+```
+cd lavalink
+docker-compose up -d
+```
 
 For this next phase, you'll have to get Docker installed and running on your machine.
 
-If you're using a Linux/Mac to build the docker image, all you have to do is follow this steps:
+No matter the OS, all you have to do is follow this steps:
 
 ```
 git clone https://github.com/FernandoJVideira/VeloxDiscordBot.git
 cd path_to_repo/VeloxDiscordBot
-docker-buildx build --platform <target_pc_platform> -t <your_docker_hub_username>/name_of_your_dockerhub_repo:latest --push
-```
-On windows (Make sure you have docker installed and are able to use it in the terminal): 
-
-```
-git clone https://github.com/FernandoJVideira/VeloxDiscordBot.git
-cd path_to_repo/VeloxDiscordBot
-docker build --tag <image_name> .
-docker image tag <image_name> <your_docker_hub_username>/<name_of_your_dockerhub_repo>
-docker push <your_docker_hub_username>/<name_of_your_dockerhub_repo>
+docker compose up -d
 ```
 
-After that, go to your target machine, pull the bot's image from your DockerHub and run it in the same docker network as the Lavalink server.
+In case you don't want to run the bot using docker, install the requirements uncomenting the `python-dotenv==1.0.0` line in requirements.txt file and just uncomment the following lines in bot.py:
 
-In case you don't want to run the bot using docker, just uncomment the following lines in bot.py:
+Run the following command:
+
+```
+pip install -r requirements.txt
+```
+
+Uncoment the following lines:
 
 ```
 from dotenv import load_dotenv
 load_dotenv("./vars.env")
 ```
 
-and rename the _example.env_ file to _vars.env_ and paste the information there instead of using the provided DockerFile.
+and rename the _example.env_ file to _vars.env_ and paste the information there instead of using the provided docker compose file.
+
+After that, edit the default values in lavalink/docker-compose.yml and lavalink/application.yml to your liking and run the lavalink server using the following command:
+
+To edit the token and visitor data, you can use the following repository: [PoToken Generator](https://github.com/iv-org/youtube-trusted-session-generator)
+
+```
+cd lavalink
+java -jar Lavalink.jar
+```
+
+Finally, run the bot using the following command:
+
+```
+python bot.py
+```
 
 (Also, this project is open for suggestions, so just leave them here or feel free to make pull requests :D)
