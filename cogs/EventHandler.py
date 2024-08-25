@@ -142,7 +142,7 @@ class EventHandler(commands.Cog):
     Sets the status of the bot
     """
     async def set_status(self):
-        await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"{len(self.bot.guilds)} servers!"))
+        await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"over {len(self.bot.guilds)} servers!"))
 
 
     """

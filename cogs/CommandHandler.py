@@ -13,7 +13,7 @@ LEVELSYS_QUERY = "SELECT levelsys FROM levelsettings WHERE guild_id = ?"
 LVLSYS_DISABLED = "The Leveling System is disabled in this server!"
 LVLSYS_INSERT_QUERY = "INSERT INTO levelsettings VALUES (?,?,?,?,?)"
 NO_PERMS_MESSAGE = "You don't have permission to do that!"
-EMBED_IMAGE = "https://i.pinimg.com/originals/40/b4/69/40b469afa11db730d3b9ffd57e9a3af9.jpg"
+EMBED_IMAGE = "https://th.bing.com/th/id/OIG3.1SD.1zAEYXWKZqiWkNOc?pid=ImgGn"
 
 database = sqlite3.connect(DATABASE)
 cursor = database.cursor()
@@ -52,8 +52,6 @@ class CommandHandler(commands.Cog):
                     messages = await self.roll_multiple_dice(num_dice, dice_type, modifier, modifier_line)
                     await interaction.response.send_message('\n'.join(messages))
 
-
-
     #* Sends an image with the user's current rank
     @app_commands.command(name= "rank", description="Shows your level!")
     async def rank(self, interaction : discord.Interaction, member: discord.Member = None):
@@ -67,7 +65,7 @@ class CommandHandler(commands.Cog):
 
 
         if levelsys and levelsys[0] and not levelsys[0][0]:
-            await interaction.response.send_message(LVLSYS_DISABLED)
+            await interaction.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
         
         xp, level = await self.getLvlAndXp(member, interaction.guild)
@@ -91,7 +89,7 @@ class CommandHandler(commands.Cog):
         levelsys = self.fetch_from_db(levelsys_query, (interaction.guild.id,))
 
         if levelsys and levelsys[0] and not levelsys[0][0]:
-            await interaction.response.send_message(LVLSYS_DISABLED)
+            await interaction.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
         
         #* Fetch role rewards
@@ -101,7 +99,7 @@ class CommandHandler(commands.Cog):
 
         #* If there are no rewards, send a message
         if not role_rewards:
-            await interaction.response.send_message("There are no rewards set for this server!")
+            await interaction.response.send_message("There are no rewards set for this server!", ephemeral=True, delete_after=5)
             return
         #* Create embed for role rewards
         em = await self.createRoleRewardsEmbrd(interaction, role_rewards)
@@ -116,7 +114,7 @@ class CommandHandler(commands.Cog):
         levelsys = self.fetch_from_db(levelsys_query, (interaction.guild.id,))
 
         if levelsys and levelsys[0] and not levelsys[0][0]:
-            await interaction.response.send_message(LVLSYS_DISABLED)
+            await interaction.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
         
         #* Fetch leaderboard data
@@ -129,7 +127,7 @@ class CommandHandler(commands.Cog):
             await interaction.response.send_message(embed=em)
             return
 
-        return await interaction.response.send_message("There are no users in the leaderboard!")
+        return await interaction.response.send_message("There are no users in the leaderboard!", ephemeral=True, delete_after=5)
 
     #* Plays Rock Paper Scissors with the user
     @app_commands.command(name="rps", description="Plays Rock Paper Scissors with you")
@@ -145,7 +143,7 @@ class CommandHandler(commands.Cog):
         bot_hand = random.choice(hands)
         #* Verifies if the user's choice is valid
         if hand not in hands:
-            return
+            return await interaction.response.send_message("Invalid hand! Please choose between ✌️, ✋ or 🤜", ephemeral=True, delete_after=5)
         #* Gets the user's score 
         score = self.get_score(interaction)
         #* If the user wins the returned color is green, otherwise it's red
@@ -173,7 +171,7 @@ class CommandHandler(commands.Cog):
             await interaction.response.send_message(embed=embed)
         else:
             #* If the user hasn't played RPS, send a message
-            await interaction.response.send_message("You haven't played RPS yet!")
+            await interaction.response.send_message("You haven't played RPS yet!", ephemeral=True, delete_after=5)
     
     @app_commands.command(name="rpsleaderboard", description="Shows the RPS Leaderboard")
     async def rpsleaderboard(self, interaction: discord.Interaction):
@@ -224,7 +222,7 @@ class CommandHandler(commands.Cog):
                 embeds.append(leveling_embed)
 
         #* Creates the dm channel and sends the embeds
-        await interaction.response.send_message("Check your DMs!")
+        await interaction.response.send_message("Check your DMs!", ephemeral=True, delete_after=5)
         await interaction.user.create_dm()
         for em in embeds:
             await interaction.user.dm_channel.send(embed = em)
@@ -306,12 +304,12 @@ class CommandHandler(commands.Cog):
     async def purge(self, interaction: discord.Interaction, message_limit_or_date_indicator: int, day: int = None, month: int = None, year: int = datetime.now().year):
         if str(message_limit_or_date_indicator) == "/":
             if day is None or month is None:
-                return
+                return await interaction.response.send_message("Please specify a date!", ephemeral=True, delete_after=5)
             else:
-                await interaction.response.send_message(f"Purging messages from {day}/{month}/{year}")
+                await interaction.response.send_message(f"Purging messages from {day}/{month}/{year}", ephemeral=True, delete_after=5)
                 await self.purge_messages_by_date(interaction, day, month, year)
         else:
-            await interaction.response.send_message(f"Purging {message_limit_or_date_indicator} messages")
+            await interaction.response.send_message(f"Purging {message_limit_or_date_indicator} messages", ephemeral=True, delete_after=5)
             await self.purge_messages_by_limit(interaction, message_limit_or_date_indicator)
 
     @moderationGroup.command(name="mute", description="Mutes a user")
@@ -319,35 +317,35 @@ class CommandHandler(commands.Cog):
     @app_commands.checks.has_permissions(mute_members = True)
     async def mute(self, interaction : discord.Interaction, user : discord.Member):
         await user.edit(mute = True)
-        await interaction.response.send_message(f"Muted {user}")
+        await interaction.response.send_message(f"Muted {user}", ephemeral=True, delete_after=5)
 
     @moderationGroup.command(name="unmute", description="Unmutes a user")
     @app_commands.describe(user = "The user to unmute")
     @app_commands.checks.has_permissions(mute_members = True)
     async def unmute(self,interaction : discord.Interaction, user : discord.Member ):
         await user.edit(mute = False)
-        await interaction.response.send_message(f"Unmuted {user}")
+        await interaction.response.send_message(f"Unmuted {user}", ephemeral=True, delete_after=5)
 
     @moderationGroup.command(name="deafen", description="Deafens a user")
     @app_commands.describe(user = "The user to deafen")
     @app_commands.checks.has_permissions(deafen_members = True)
     async def deafen(self,interaction : discord.Interaction, user : discord.Member):
         await user.edit(deafen = True)
-        await interaction.response.send_message(f"Deafened {user}")
+        await interaction.response.send_message(f"Deafened {user}", ephemeral=True, delete_after=5)
 
     @moderationGroup.command(name="undeafen", description="Undeafens a user")
     @app_commands.describe(user = "The user to undeafen")
     @app_commands.checks.has_permissions(deafen_members = True)
     async def undeafen(self,interaction : discord.Interaction, user : discord.Member):
         await user.edit(deafen = False)
-        await interaction.response.send_message(f"Undeafened {user}")
+        await interaction.response.send_message(f"Undeafened {user}", ephemeral=True, delete_after=5)
 
     @moderationGroup.command(name="voicekick", description="Kicks a user from a Voice Channel")
     @app_commands.describe(user = "The user to kick from the Voice Channel")
     @app_commands.checks.has_permissions(kick_members = True)
     async def voicekick(self,interaction : discord.Interaction, user : discord.Member):
         await user.edit(voice_channel = None)
-        await interaction.response.send_message(f"Kicked {user} from Voice Channel")
+        await interaction.response.send_message(f"Kicked {user} from Voice Channel", ephemeral=True, delete_after=5)
 
 
     #*----------------------------------------------//----------------------------------------------*#
@@ -366,7 +364,7 @@ class CommandHandler(commands.Cog):
         query = "UPDATE welcome SET welcome_channel_id = ? WHERE guild_id = ?"
         self.execute_db_query(query, (channel_id, guild_id))
 
-        await interaction.response.send_message(f"Welcome Channel set to {welcome_channel.mention}")
+        await interaction.response.send_message(f"Welcome Channel set to {welcome_channel.mention}", ephemeral=True, delete_after=5)
 
     @config.command(name="removewelcomechannel", description="Removes the Channel set for Welcome Messages")
     @app_commands.checks.has_permissions(manage_guild = True)
@@ -375,28 +373,28 @@ class CommandHandler(commands.Cog):
         query = "DELETE FROM welcome WHERE guild_id = ?"
         self.execute_db_query(query, (interaction.guild.id,))
         #* Sends a message
-        await interaction.response.send_message("Removed the Welcome Channel!")
+        await interaction.response.send_message("Removed the Welcome Channel!", ephemeral=True, delete_after=5)
 
     @config.command(name="updatewelcomemessage", description="Updates the Default Welcome Embed Message")
     @app_commands.describe(message = "The new Welcome Message")
     async def updateWelcomeMessage(self,interaction : discord.Interaction, *, message : str):
         query = "UPDATE welcome SET welcome_message = ? WHERE guild_id = ?"
         self.execute_db_query(query, (message, interaction.guild.id))
-        await interaction.response.send_message("Welcome Message Updated!")
+        await interaction.response.send_message("Welcome Message Updated!", ephemeral=True, delete_after=5)
 
     @config.command(name="updatewelcomedm", description="Updates the Default Welcome DM Message")
     @app_commands.describe(message = "The new Welcome DM Message")
     async def updateWelcomeDmMessage(self,interaction : discord.Interaction, *, message : str):
         query = "UPDATE welcome SET welcome_dm = ? WHERE guild_id = ?"
         self.execute_db_query(query, (message, interaction.guild.id))
-        await interaction.response.send_message("Welcome Message DM Updated!")
+        await interaction.response.send_message("Welcome Message DM Updated!", ephemeral=True, delete_after=5)
 
     @config.command(name="updatewelcomegif", description="Updates the Default Welcome Embed Gif")
     @app_commands.describe(url = "The new Welcome Gif URL")
     async def updateWelcomeGif(self,interaction : discord.Interaction, *, url : str):
         query = "UPDATE welcome SET welcome_gif_url = ? WHERE guild_id = ?"
         self.execute_db_query(query, (url, interaction.guild.id))
-        await interaction.response.send_message("Welcome Embed Gif Updated!")
+        await interaction.response.send_message("Welcome Embed Gif Updated!", ephemeral=True, delete_after=5)
 
 
     @config.command(name="setlevelupchannel", description="Sets the Level Up Channel")
@@ -417,16 +415,17 @@ class CommandHandler(commands.Cog):
             query = "UPDATE levelup SET levelup_channel_id = ? WHERE guild_id = ?"
             self.execute_db_query(query, (guild_id, channel_id))
         #* Sends a message
-        await command_context.response.send_message(f"Level Up Channel set to {levelup_channel.mention}")
+        await command_context.response.send_message(f"Level Up Channel set to {levelup_channel.mention}", ephemeral=True, delete_after=5)
 
     @config.command(name="removelevelupchannel", description="Removes the Channel set for Level Up Notifications")
     @app_commands.checks.has_permissions(manage_guild = True)
     async def removeStreamChannel(self,interaction : discord.Interaction):
         #* Deletes the levelup channel from the database
-        cursor.execute("DELETE FROM levelup WHERE guild_id = ?", (interaction.guild.id,))
+        query = "DELETE FROM levelup WHERE guild_id = ?"
+        self.execute_db_query(query, (interaction.guild.id,))
         database.commit()
         #* Sends a message
-        await interaction.response.send_message("Removed the Level Up Channel!")
+        await interaction.response.send_message("Removed the Level Up Channel!", ephemeral=True, delete_after=5)
 
     @config.command(name="settwitchnotificationchannel", description="Sets the Channel for Twitch Notifications")
     @app_commands.describe(twitch_notification_channel = "The channel to set as the Notification Channel")
@@ -446,7 +445,7 @@ class CommandHandler(commands.Cog):
             query = "UPDATE twitch_config SET twitch_channel_id = ? WHERE guild_id = ?"
             self.execute_db_query(query, (guild_id, channel_id))
         #* Sends a message
-        await command_context.response.send_message(f"Notification Channel set to {twitch_notification_channel.mention}")
+        await command_context.response.send_message(f"Notification Channel set to {twitch_notification_channel.mention}", ephemeral=True, delete_after=5)
     
     @config.command(name="removestreamchannel", description="Removes the Channel set for Twitch Notifications")
     @app_commands.checks.has_permissions(manage_guild = True)
@@ -455,7 +454,7 @@ class CommandHandler(commands.Cog):
         query = "DELETE FROM twitch_config WHERE guild_id = ?"
         self.execute_db_query(query, (interaction.guild.id,))
         #* Sends a message
-        await interaction.response.send_message("Removed the Notification Channel!")
+        await interaction.response.send_message("Removed the Notification Channel!", ephemeral=True, delete_after=5)
 
     @config.command(name="addstreamer", description="Adds a Streamer for Twitch Notifications")
     @app_commands.describe(streamer = "The streamer to add")
@@ -466,16 +465,16 @@ class CommandHandler(commands.Cog):
         not_channel = self.fetch_from_db(not_channel_querry, (interaction.guild.id,))
         #* If there's no twitch channel, send a message, otherwise add the streamer to the database
         if not not_channel:
-            await interaction.response.send_message("Please set a Notification Channel first!")
+            await interaction.response.send_message("Please set a Notification Channel first!", ephemeral=True, delete_after=5)
         else:
                 streamer = self.checkStreamer(streamer)
                 if len(streamer) > 0:
-                    await interaction.response.send_message("This streamer is already in the Streamers List!")
+                    await interaction.response.send_message("This streamer is already in the Streamers List!", ephemeral=True, delete_after=5)
                     return
                 
                 query = "INSERT INTO twitch VALUES (?,?,?)"
                 self.execute_db_query(query, (streamer,"not live", interaction.guild.id))
-                await interaction.response.send_message(f"Added {streamer} to the Streamers List!")
+                await interaction.response.send_message(f"Added {streamer} to the Streamers List!", ephemeral=True, delete_after=5)
 
     @config.command(name="removestreamer", description="Removes a Streamer from Twitch Notifications")
     @app_commands.describe(streamer = "The streamer to remove")
@@ -483,13 +482,13 @@ class CommandHandler(commands.Cog):
     async def removeStreamer(self,interaction : discord.Interaction, streamer : str):
 
         if await self.checkStreamer(streamer) is None:
-            await interaction.response.send_message("This streamer is not in the Streamers List!")
+            await interaction.response.send_message("This streamer is not in the Streamers List!", ephemeral=True, delete_after=5)
             return
         #* Deletes the streamer from the database
         query = "DELETE FROM twitch WHERE twitch_user = ? AND guild_id = ?"
         self.execute_db_query(query, (streamer, interaction.guild.id))
         #* Sends a message
-        await interaction.response.send_message(f"Removed {streamer} from the Streamers List!")      
+        await interaction.response.send_message(f"Removed {streamer} from the Streamers List!", ephemeral=True, delete_after=5)      
 
     @config.command(name="setdefaultrole", description="Sets the Default Role when a user joins the server")
     @app_commands.describe(default_role = "The role to set as the Default Role")
@@ -508,7 +507,7 @@ class CommandHandler(commands.Cog):
             query = "UPDATE defaultrole SET role_id = ? WHERE guild_id = ?"
             self.execute_db_query(query, (role_id, guild_id))
         #* Sends a message
-        await command_context.response.send_message(f"Default Role set to {default_role.mention}")  
+        await command_context.response.send_message(f"Default Role set to {default_role.mention}", ephemeral=True, delete_after=5)  
 
     """This group of commands allows the user to configure the Server Leveling System"""
     slvl = app_commands.Group(name="slvl", description="Configure the Server Leveling System")
@@ -534,7 +533,7 @@ class CommandHandler(commands.Cog):
             query = "UPDATE levelsettings SET levelsys = ? WHERE guild_id = ?"
             self.execute_db_query(query, (True, guild_id))
         #* Sends a message
-        await command_context.response.send_message("Leveling System Enabled!")
+        await command_context.response.send_message("Leveling System Enabled!", ephemeral=True, delete_after=5)
 
     @slvl.command(name="disable", description="Disables the Server Leveling System")
     @app_commands.checks.has_permissions(manage_guild = True)
@@ -552,12 +551,12 @@ class CommandHandler(commands.Cog):
         else:
             #* If the levelsys is already enabled, send a message
             if levelsys and levelsys[0] and not levelsys[0][0]:
-                await interaction.response.send_message("The Leveling System is already disabled!")
+                await interaction.response.send_message("The Leveling System is already disabled!", ephemeral=True, delete_after=5)
                 return
             query = "UPDATE levelsettings SET levelsys = ? WHERE guild_id = ?"
             self.execute_db_query(query, (guild_id, False))
         #* Sends a message
-        await interaction.response.send_message("Leveling System Disabled!")
+        await interaction.response.send_message("Leveling System Disabled!", ephemeral=True, delete_after=5)
 
     @slvl.command(name="setlevelrewards", description="Sets the Level Rewards")
     @app_commands.describe(reward_level = "The level to set the reward for", reward_role = "The role to give as a reward")
@@ -572,7 +571,7 @@ class CommandHandler(commands.Cog):
         levelsys = self.fetch_from_db(levelsys_query, (guild_id,))
 
         if levelsys and levelsys[0] and not levelsys[0][0]:
-            await command_context.response.send_message(LVLSYS_DISABLED)
+            await command_context.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
         
         #* Fetches the existing reward role, if there is one
@@ -583,13 +582,13 @@ class CommandHandler(commands.Cog):
 
         #* If there's no reward role, insert it into the database, otherwise update it
         if role_tf and level_tf:
-            await command_context.response.send_message("This role is already set as a reward for this level!")
+            await command_context.response.send_message("This role is already set as a reward for this level!", ephemeral=True, delete_after=5)
             return
         
         #* If there's no reward role, insert it into the database, otherwise update it
         query = "INSERT INTO levelsettings VALUES (?,?,?,?)"
         self.execute_db_query(query, (True, role_id, reward_level, None, guild_id))
-        await command_context.response.send_message(f"Set {reward_role.mention} as a reward for level {reward_level}!")
+        await command_context.response.send_message(f"Set {reward_role.mention} as a reward for level {reward_level}!", ephemeral=True, delete_after=5)
     
     @slvl.command(name="removereward", description="Removes a Level Reward")
     @app_commands.describe(reward_level = "The level to remove the reward from")
@@ -603,13 +602,13 @@ class CommandHandler(commands.Cog):
         levelsys = self.fetch_from_db(levelsys_query, guild_id,)
 
         if levelsys and levelsys[0] and not levelsys[0][0]:
-            await command_context.response.send_message(LVLSYS_DISABLED)
+            await command_context.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
 
         #* Fetches the existing reward role, if there is one
         query = "DELETE FROM levelsettings WHERE levelreq = ? AND guild_id = ?"
         self.execute_db_query(query, (reward_level, guild_id))
-        await command_context.response.send_message(f"Removed the reward for level {reward_level}!")
+        await command_context.response.send_message(f"Removed the reward for level {reward_level}!", ephemeral=True, delete_after=5)
 
     @slvl.command(name="setlvlupmessage", description="Sets the Level Up Message")
     @app_commands.describe(level_up_message = " {user} is the user that leveled up and {level} is the level the user leveled up to")
@@ -622,7 +621,7 @@ class CommandHandler(commands.Cog):
         levelsys = self.fetch_from_db(levelsys_query, (guild_id,))
         #* If the leveling system is disabled, send a message
         if levelsys is None or not levelsys[0]:
-            await command_context.response.send_message(LVLSYS_DISABLED)
+            await command_context.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
 
         #* Fetches the existing level up message, if there is one
@@ -639,7 +638,7 @@ class CommandHandler(commands.Cog):
             self.insert_message(guild_id, level_up_message)
 
         #* Sends a message
-        await command_context.response.send_message("Level Up Message set!")
+        await command_context.response.send_message("Level Up Message set!", ephemeral=True, delete_after=5)
     
     @slvl.command(name="resetlvlupmessage", description="Resets the Level Up Message")
     @app_commands.checks.has_permissions(manage_guild = True)
@@ -651,12 +650,12 @@ class CommandHandler(commands.Cog):
         levelsys = self.fetch_from_db(levelsys_query, (guild_id,))
         #* If the leveling system is disabled, send a message
         if levelsys is None or not levelsys[0]:
-            await command_context.response.send_message(LVLSYS_DISABLED)
+            await command_context.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
         #* Resets the level up message
         query = "UPDATE levelsettings SET message = ? WHERE guild_id = ?"
         self.execute_db_query(query, (None, guild_id))
-        await command_context.response.send_message("Level Up Message reset!")
+        await command_context.response.send_message("Level Up Message reset!", ephemeral=True, delete_after=5)
 
     @slvl.command(name="setlvl", description="Sets the User's Level")
     @app_commands.describe(user = "The user to set the level for", level = "The level to set")
@@ -669,7 +668,7 @@ class CommandHandler(commands.Cog):
         levelsys = self.fetch_from_db(levelsys_query, (guild_id,))
         #* If the leveling system is disabled, send a message
         if levelsys and levelsys[0] and not levelsys[0][0]:
-            await command_context.response.send_message(LVLSYS_DISABLED)
+            await command_context.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
         #* Fetches the existing level, if there is one
         level_query = "SELECT level FROM levels WHERE user = ? AND guild = ?"
@@ -683,7 +682,7 @@ class CommandHandler(commands.Cog):
             query = "INSERT INTO levels VALUES (?,?,?,?)"
             self.execute_db_query(query, (level, 0, user.id, guild_id))
         #* Sends a message
-        await command_context.response.send_message(f"Set {user.mention}'s level to {level}!")
+        await command_context.response.send_message(f"Set {user.mention}'s level to {level}!", ephemeral=True, delete_after=5)
 
 
     #*----------------------------------------------//----------------------------------------------#
@@ -693,74 +692,74 @@ class CommandHandler(commands.Cog):
     @scream.error
     async def scream_error(self, interaction: discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingRole):
-            await interaction.response.send_message("You must have the Panik role to use this command.")
+            await interaction.response.send_message("You must have the Panik role to use this command.", ephemeral=True, delete_after=5)
 
     #Moderation Commands ErrorHandlers
     @servername.error
     async def errorhandler(self, interaction : discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE, ephemeral=True, delete_after=5)
 
     @region.error
     async def errorhandler(self, interaction : discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE, ephemeral=True, delete_after=5)
         if isinstance(error, app_commands.errors.CommandInvokeError):
-            await interaction.response.send_message("Please choose a valid region!")
+            await interaction.response.send_message("Please choose a valid region!", ephemeral=True, delete_after=5)
 
     @createtextchannel.error
     async def errorhandler(self, interaction : discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE, ephemeral=True, delete_after=5)
 
     @createvoicechannel.error
     async def errorhandler(self, interaction : discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE, ephemeral=True, delete_after=5)
 
     @kick.error
     async def errorhandler(self,interaction : discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE, ephemeral=True, delete_after=5)
 
     @ban.error
     async def errorhandler(self,interaction : discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE, ephemeral=True, delete_after=5)
     @purge.error
     async def errorhandler(self,interaction : discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE, ephemeral=True, delete_after=5)
 
     @deafen.error
     async def errorhandler(self,interaction : discord.Interaction, error):    
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE, ephemeral=True, delete_after=5)
 
     @undeafen.error
     async def errorhandler(self,interaction : discord.Interaction, error):    
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE, ephemeral=True, delete_after=5)
 
     @mute.error
     async def errorhandler(self,interaction : discord.Interaction, error):    
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE, ephemeral=True, delete_after=5)
 
     @unmute.error
     async def errorhandler(self,interaction : discord.Interaction, error):    
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE, ephemeral=True, delete_after=5)
 
     @voicekick.error
     async def errorhandler(self,interaction : discord.Interaction, error):    
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE, ephemeral=True, delete_after=5)
     
     @unban.error
     async def errorhandler(self,interaction : discord.Interaction, error):    
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction.response.send_message(NO_PERMS_MESSAGE)
+            await interaction.response.send_message(NO_PERMS_MESSAGE, ephemeral=True, delete_after=5)
 
     #*Utility Functions
 
@@ -1005,12 +1004,8 @@ class CommandHandler(commands.Cog):
         em = discord.Embed(title = "Music Commands", description = "These are the Bot's Music Commands", color = discord.Colour.orange())
         em.set_thumbnail(url = EMBED_IMAGE)
         em.add_field(name = "/play", value = "This command makes the bot Play a song when in a voice channel! ", inline = False)
-        em.add_field(name = "/skip", value = "This command skips the current song!", inline = False)
-        em.add_field(name = "/resume", value = "This command resumes the paused song!", inline = False)
-        em.add_field(name = "/setvolume", value = "This command sets the bot Volume (1-1000)", inline = False)
-        em.add_field(name = "/loop", value = "This command loops the current song!", inline = False)
-        em.add_field(name = "/leave", value = "This command disconnects the bot from the channel", inline = False)
         em.add_field(name = "/queue", value = "This command allows the user to view what songs are in queue!", inline = False)
+        em.add_field(name = "/clear", value = "This command allows the user to clear the queue!", inline = False)
         return em
     
     async def createAdminCmdEmbed(self):
