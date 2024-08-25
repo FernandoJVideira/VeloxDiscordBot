@@ -1,0 +1,16 @@
+services:
+  bot:
+    build:
+      context: .
+      network: host
+    networks:
+      - lavalink
+    environment:
+      - APPLICATION_ID=<Application ID here>
+      - TOKEN=<Token here>
+      - LAVALINK_PASSWORD=<Lavalink Password here>
+      - LAVALINK_HOST=<Lavalink Host here>
+
+networks:
+  lavalink:
+    name: lavalink

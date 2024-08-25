@@ -1,6 +1,4 @@
 #Ignore the __pycache__ folder and the .pyc files
 __pycache__/
 *.db
-Dockerfile
 vars.env
-Dockerfile
