@@ -1,35 +1,51 @@
 import re
+import aiohttp
 import discord
 from discord import app_commands
 from discord.app_commands import Choice
 import random
 from datetime import datetime
 from discord.ext import commands
-import sqlite3
+from cogs.DatabaseHandler import DatabaseHandler
 from easy_pil import Canvas, Font, Editor, load_image_async
 
-DATABASE = "bot.db"
+
 LEVELSYS_QUERY = "SELECT levelsys FROM levelsettings WHERE guild_id = ?"
 LVLSYS_DISABLED = "The Leveling System is disabled in this server!"
 LVLSYS_INSERT_QUERY = "INSERT INTO levelsettings VALUES (?,?,?,?,?)"
 NO_PERMS_MESSAGE = "You don't have permission to do that!"
 EMBED_IMAGE = "https://th.bing.com/th/id/OIG3.1SD.1zAEYXWKZqiWkNOc?pid=ImgGn"
+API_URL = "https://icanhazdadjoke.com/"
 
-database = sqlite3.connect(DATABASE)
-cursor = database.cursor()
 class CommandHandler(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
+        self.database = DatabaseHandler()
 
     #* Fun Commands
     #* Ping Command, replies with Pong! and the latency of the bot
     @app_commands.command(name="ping", description="Pings the bot")
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def ping(self, interaction : discord.Interaction):
         await interaction.response.send_message(f"Pong! 🏓  {self.bot.latency * 1000:.0f}ms")
 
+    @app_commands.command(name="joke", description="Sends a random joke")
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def joke(self, interaction : discord.Interaction):
+        async with aiohttp.ClientSession() as session:
+            headers = {"Accept": "application/json", "User-Agent": "VeloxDiscordBot (https://github.com/FernandoJVideira/VeloxDiscordBot)"}
+            async with session.get(API_URL, headers=headers) as response:
+                data = await response.json()
+                await interaction.response.send_message(data["joke"])
+
+
     #* Sends a message with a coinflip
     @app_commands.command(name="coinflip", description="Flips a coin")
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def coinflip(self,interaction : discord.Interaction):
         #* Generates a random number between 1 and 2
         num = random.randint(1, 2)
@@ -40,8 +56,10 @@ class CommandHandler(commands.Cog):
             await interaction.response.send_message("Tails!")
 
     @app_commands.command(name="dice", description="Rolls a dice")
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def dice(self,interaction : discord.Interaction, dice: str):
-        pattern_index = self.matches_template(dice.content)
+        pattern_index = self.matches_template(dice)
         if pattern_index is not None:
             match pattern_index:
                 case 1 | 0:
@@ -61,10 +79,10 @@ class CommandHandler(commands.Cog):
 
         #* Check if leveling system is enabled
         levelsys_query = LEVELSYS_QUERY
-        levelsys = self.fetch_from_db(levelsys_query, (interaction.guild.id,))
+        levelsys = self.database.fetch_one_from_db(levelsys_query, (interaction.guild.id,))
 
 
-        if levelsys and levelsys[0] and not levelsys[0][0]:
+        if not levelsys[0]:
             await interaction.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
         
@@ -86,15 +104,15 @@ class CommandHandler(commands.Cog):
     async def rewards(self, interaction : discord.Interaction):
         #* Check if leveling system is enabled
         levelsys_query = LEVELSYS_QUERY
-        levelsys = self.fetch_from_db(levelsys_query, (interaction.guild.id,))
+        levelsys = self.database.fetch_one_from_db(levelsys_query, (interaction.guild.id,))
 
-        if levelsys and levelsys[0] and not levelsys[0][0]:
+        if not levelsys[0]:
             await interaction.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
         
         #* Fetch role rewards
         role_rewards_query = "SELECT * FROM levelsettings WHERE guild_id = ?"
-        role_rewards = self.fetch_from_db(role_rewards_query, (interaction.guild.id,))
+        role_rewards = self.database.fetch_all_from_db(role_rewards_query, (interaction.guild.id,))
         role_rewards = role_rewards[1:]
 
         #* If there are no rewards, send a message
@@ -111,15 +129,15 @@ class CommandHandler(commands.Cog):
     async def leaderboard(self, interaction : discord.Interaction):
         #* Check if leveling system is enabled
         levelsys_query = LEVELSYS_QUERY
-        levelsys = self.fetch_from_db(levelsys_query, (interaction.guild.id,))
+        levelsys = self.database.fetch_one_from_db(levelsys_query, (interaction.guild.id,))
 
-        if levelsys and levelsys[0] and not levelsys[0][0]:
+        if not levelsys[0]:
             await interaction.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
         
         #* Fetch leaderboard data
         data_query = "SELECT level, xp, user FROM levels WHERE guild = ? ORDER BY level DESC, xp DESC LIMIT 10"
-        data = self.fetch_from_db(data_query, (interaction.guild.id,))
+        data = self.database.fetch_all_from_db(data_query, (interaction.guild.id,))
 
         #*If there's data, create the embed and send it
         if data:
@@ -153,7 +171,7 @@ class CommandHandler(commands.Cog):
         if result == "You won!":
             score = (score[0] + 1,)
             query = "UPDATE rps SET score = ? WHERE guild_id = ? AND user_id = ?"
-            self.execute_db_query(query, (score[0], interaction.guild.id, interaction.user.id))
+            self.database.execute_db_query(query, (score[0], interaction.guild.id, interaction.user.id))
         #* Sends the game result
         await self.send_game_result(interaction, result, hand, bot_hand, score, color)
 
@@ -162,7 +180,7 @@ class CommandHandler(commands.Cog):
     async def rpsstats(self, interaction: discord.Interaction):
         #* Fetch user's score
         user_score_query = "SELECT score FROM rps WHERE guild_id = ? AND user_id = ?"
-        user_score = self.fetch_from_db(user_score_query, (interaction.guild.id, interaction.user.id))
+        user_score = self.database.fetch_one_from_db(user_score_query, (interaction.guild.id, interaction.user.id))
 
         #* If the user has played RPS, create the embed and send it
         if user_score is not None:
@@ -177,7 +195,7 @@ class CommandHandler(commands.Cog):
     async def rpsleaderboard(self, interaction: discord.Interaction):
         #* Fetch leaderboard scores
         leaderboard_query = "SELECT user_id, score FROM rps WHERE guild_id = ? ORDER BY score DESC"
-        leaderboard_scores = self.fetch_from_db(leaderboard_query, (interaction.guild.id,))
+        leaderboard_scores = self.database.fetch_all_from_db(leaderboard_query, (interaction.guild.id,))
         
         #* If there's data, create the embed and send it
         if leaderboard_scores is not None:
@@ -185,6 +203,8 @@ class CommandHandler(commands.Cog):
             await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="help", description="Shows the bot's commands")
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.describe(option = "The command to get help with")
     @app_commands.choices(option = [
         Choice(name = "Fun Commands", value = "fun"),
@@ -196,7 +216,6 @@ class CommandHandler(commands.Cog):
 
     async def help(self,interaction : discord.Interaction, option : str = None):
         embeds = []
-
         match option:
             case None:
                 fun_embed = await self.createFunCmdEmbed()
@@ -236,30 +255,30 @@ class CommandHandler(commands.Cog):
     @serverGroup.command(name="servername", description="Edits the Server Name")
     @app_commands.describe(input = "The new Server Name")
     @app_commands.checks.has_permissions(manage_guild = True)
-    async def servername(self,interaction : discord.Interaction,*,input : str):
+    async def servername(self,interaction : discord.Interaction,input : str):
         await interaction.guild.edit(name = input)
-        await interaction.response.send_message(f"Server Name Changed to {input}")
+        await interaction.response.send_message(f"Server Name Changed to {input}", ephemeral=True, delete_after=5)
 
     @serverGroup.command(name="region", description="Edits the Server Region")
     @app_commands.describe(input = "The new Server Region")
     @app_commands.checks.has_permissions(manage_guild = True)
     async def region(self,interaction : discord.Interaction,*,input : str):
         await interaction.guild.edit(region = input)
-        await interaction.response.send_message(f"Server Region Changed to {input}")
+        await interaction.response.send_message(f"Server Region Changed to {input}", ephemeral=True, delete_after=5)
 
     @serverGroup.command(name="createtextchannel", description="Creates a Text Channel")
     @app_commands.describe(input = "The new Text Channel Name")
     @app_commands.checks.has_permissions(manage_guild = True)
-    async def createtextchannel(self,interaction : discord.Interaction,*,input : str):
+    async def createtextchannel(self,interaction : discord.Interaction,input : str):
         await interaction.guild.create_text_channel(name = input)
-        await interaction.response.send_message(f"Text Channel Created with the name {input}")
+        await interaction.response.send_message(f"Text Channel Created with the name {input}", ephemeral=True, delete_after=5)
 
     @serverGroup.command(name="createvoicechannel", description="Creates a Voice Channel")
     @app_commands.describe(input = "The new Voice Channel Name")
     @app_commands.checks.has_permissions(manage_guild = True)
-    async def createvoicechannel(self,interaction : discord.Interaction,*,input : str):
+    async def createvoicechannel(self,interaction : discord.Interaction,input : str):
         await interaction.guild.create_voice_channel(name = input)
-        await interaction.response.send_message(f"Voice Channel Created with the name {input}")
+        await interaction.response.send_message(f"Voice Channel Created with the name {input}", ephemeral=True, delete_after=5)
 
     @serverGroup.command(name="createrole", description="Creates a Role")
     @app_commands.describe(input = "The new Role Name")
@@ -290,7 +309,7 @@ class CommandHandler(commands.Cog):
     @moderationGroup.command(name="unban", description="Unbans a user")
     @app_commands.describe(user_to_unban = "User to unban")
     @app_commands.checks.has_permissions(ban_members = True)
-    async def unban(self, interaction: discord.Interaction, *, user_to_unban: str):
+    async def unban(self, interaction: discord.Interaction, user_to_unban: str):
         banned_members = await interaction.guild.bans()
         user = self.find_banned_user(banned_members, user_to_unban)
 
@@ -362,7 +381,7 @@ class CommandHandler(commands.Cog):
         channel_id = welcome_channel.id
 
         query = "UPDATE welcome SET welcome_channel_id = ? WHERE guild_id = ?"
-        self.execute_db_query(query, (channel_id, guild_id))
+        self.database.execute_db_query(query, (channel_id, guild_id))
 
         await interaction.response.send_message(f"Welcome Channel set to {welcome_channel.mention}", ephemeral=True, delete_after=5)
 
@@ -371,7 +390,7 @@ class CommandHandler(commands.Cog):
     async def removeWelcomeChannel(self,interaction : discord.Interaction):
         #* Deletes the welcome channel from the database
         query = "DELETE FROM welcome WHERE guild_id = ?"
-        self.execute_db_query(query, (interaction.guild.id,))
+        self.database.execute_db_query(query, (interaction.guild.id,))
         #* Sends a message
         await interaction.response.send_message("Removed the Welcome Channel!", ephemeral=True, delete_after=5)
 
@@ -379,21 +398,21 @@ class CommandHandler(commands.Cog):
     @app_commands.describe(message = "The new Welcome Message")
     async def updateWelcomeMessage(self,interaction : discord.Interaction, *, message : str):
         query = "UPDATE welcome SET welcome_message = ? WHERE guild_id = ?"
-        self.execute_db_query(query, (message, interaction.guild.id))
+        self.database.execute_db_query(query, (message, interaction.guild.id))
         await interaction.response.send_message("Welcome Message Updated!", ephemeral=True, delete_after=5)
 
     @config.command(name="updatewelcomedm", description="Updates the Default Welcome DM Message")
     @app_commands.describe(message = "The new Welcome DM Message")
     async def updateWelcomeDmMessage(self,interaction : discord.Interaction, *, message : str):
         query = "UPDATE welcome SET welcome_dm = ? WHERE guild_id = ?"
-        self.execute_db_query(query, (message, interaction.guild.id))
+        self.database.execute_db_query(query, (message, interaction.guild.id))
         await interaction.response.send_message("Welcome Message DM Updated!", ephemeral=True, delete_after=5)
 
     @config.command(name="updatewelcomegif", description="Updates the Default Welcome Embed Gif")
     @app_commands.describe(url = "The new Welcome Gif URL")
     async def updateWelcomeGif(self,interaction : discord.Interaction, *, url : str):
         query = "UPDATE welcome SET welcome_gif_url = ? WHERE guild_id = ?"
-        self.execute_db_query(query, (url, interaction.guild.id))
+        self.database.execute_db_query(query, (url, interaction.guild.id))
         await interaction.response.send_message("Welcome Embed Gif Updated!", ephemeral=True, delete_after=5)
 
 
@@ -406,14 +425,14 @@ class CommandHandler(commands.Cog):
         channel_id = levelup_channel.id
         #* Fetches the existing levelup channel, if there is one
         channel_query = "SELECT levelup_channel_id FROM levelup WHERE guild_id = ?"
-        existing_levelup_channel = self.fetch_from_db(channel_query, (guild_id,))
+        existing_levelup_channel = self.database.fetch_one_from_db(channel_query, (guild_id,))
         #* If there's no levelup channel, insert it into the database, otherwise update it
         if not existing_levelup_channel:
             query = "INSERT INTO levelup VALUES (?,?)"
-            self.execute_db_query(query, (guild_id, channel_id))
+            self.database.execute_db_query(query, (guild_id, channel_id))
         else:
             query = "UPDATE levelup SET levelup_channel_id = ? WHERE guild_id = ?"
-            self.execute_db_query(query, (guild_id, channel_id))
+            self.database.execute_db_query(query, (guild_id, channel_id))
         #* Sends a message
         await command_context.response.send_message(f"Level Up Channel set to {levelup_channel.mention}", ephemeral=True, delete_after=5)
 
@@ -422,8 +441,7 @@ class CommandHandler(commands.Cog):
     async def removeStreamChannel(self,interaction : discord.Interaction):
         #* Deletes the levelup channel from the database
         query = "DELETE FROM levelup WHERE guild_id = ?"
-        self.execute_db_query(query, (interaction.guild.id,))
-        database.commit()
+        self.database.execute_db_query(query, (interaction.guild.id,))
         #* Sends a message
         await interaction.response.send_message("Removed the Level Up Channel!", ephemeral=True, delete_after=5)
 
@@ -436,14 +454,14 @@ class CommandHandler(commands.Cog):
         channel_id = twitch_notification_channel.id
         #* Fetches the existing twitch channel, if there is one
         config_query = "SELECT twitch_channel_id FROM twitch_config WHERE guild_id = ?"
-        existing_twitch_config = self.fetch_from_db(config_query, (guild_id,))
+        existing_twitch_config = self.database.fetch_one_from_db(config_query, (guild_id,))
         #* If there's no twitch channel, insert it into the database, otherwise update it
         if not existing_twitch_config:
             query = "INSERT INTO twitch_config VALUES (?,?)"
-            self.execute_db_query(query, (guild_id, channel_id))
+            self.database.execute_db_query(query, (guild_id, channel_id))
         else:
             query = "UPDATE twitch_config SET twitch_channel_id = ? WHERE guild_id = ?"
-            self.execute_db_query(query, (guild_id, channel_id))
+            self.database.execute_db_query(query, (guild_id, channel_id))
         #* Sends a message
         await command_context.response.send_message(f"Notification Channel set to {twitch_notification_channel.mention}", ephemeral=True, delete_after=5)
     
@@ -452,7 +470,7 @@ class CommandHandler(commands.Cog):
     async def removeStreamChannel(self,interaction : discord.Interaction):
         #* Deletes the twitch channel from the database
         query = "DELETE FROM twitch_config WHERE guild_id = ?"
-        self.execute_db_query(query, (interaction.guild.id,))
+        self.database.execute_db_query(query, (interaction.guild.id,))
         #* Sends a message
         await interaction.response.send_message("Removed the Notification Channel!", ephemeral=True, delete_after=5)
 
@@ -461,32 +479,30 @@ class CommandHandler(commands.Cog):
     @app_commands.checks.has_permissions(manage_guild = True)
     async def addStreamer(self,interaction : discord.Interaction, streamer : str):
         #* Fetches the existing twitch channel, if there is one
-        not_channel_querry = "SELECT twitch_channel_id FROM twitch_config WHERE guild_id = ?"
-        not_channel = self.fetch_from_db(not_channel_querry, (interaction.guild.id,))
+        query = "SELECT twitch_channel_id FROM twitch_config WHERE guild_id = ?"
+        not_channel = self.database.fetch_one_from_db(query, (interaction.guild.id,))
         #* If there's no twitch channel, send a message, otherwise add the streamer to the database
         if not not_channel:
             await interaction.response.send_message("Please set a Notification Channel first!", ephemeral=True, delete_after=5)
         else:
-                streamer = self.checkStreamer(streamer)
-                if len(streamer) > 0:
-                    await interaction.response.send_message("This streamer is already in the Streamers List!", ephemeral=True, delete_after=5)
-                    return
-                
-                query = "INSERT INTO twitch VALUES (?,?,?)"
-                self.execute_db_query(query, (streamer,"not live", interaction.guild.id))
-                await interaction.response.send_message(f"Added {streamer} to the Streamers List!", ephemeral=True, delete_after=5)
+            streamer = self.checkStreamer(streamer)
+            if len(streamer) > 0:
+                await interaction.response.send_message("This streamer is already in the Streamers List!", ephemeral=True, delete_after=5)
+                return
+            query = "INSERT INTO twitch VALUES (?,?,?)"
+            self.database.execute_db_query(query, (streamer,"not live", interaction.guild.id))
+            await interaction.response.send_message(f"Added {streamer} to the Streamers List!", ephemeral=True, delete_after=5)
 
     @config.command(name="removestreamer", description="Removes a Streamer from Twitch Notifications")
     @app_commands.describe(streamer = "The streamer to remove")
     @app_commands.checks.has_permissions(manage_guild = True)
     async def removeStreamer(self,interaction : discord.Interaction, streamer : str):
-
         if await self.checkStreamer(streamer) is None:
             await interaction.response.send_message("This streamer is not in the Streamers List!", ephemeral=True, delete_after=5)
             return
         #* Deletes the streamer from the database
         query = "DELETE FROM twitch WHERE twitch_user = ? AND guild_id = ?"
-        self.execute_db_query(query, (streamer, interaction.guild.id))
+        self.database.execute_db_query(query, (streamer, interaction.guild.id))
         #* Sends a message
         await interaction.response.send_message(f"Removed {streamer} from the Streamers List!", ephemeral=True, delete_after=5)      
 
@@ -498,14 +514,15 @@ class CommandHandler(commands.Cog):
         guild_id = command_context.guild.id
         role_id = default_role.id
         #* Fetches the existing default role, if there is one
-        existing_default_role = self.fetch_from_db("SELECT * FROM defaultrole WHERE guild_id = ?", (guild_id,))
+        query = "SELECT * FROM defaultrole WHERE guild_id = ?"
+        existing_default_role = self.database.fetch_one_from_db(query, (guild_id,))
         #* If there's no default role, insert it into the database, otherwise update it
         if not existing_default_role:
             query = "INSERT INTO defaultrole VALUES (?,?)"
-            self.execute_db_query(query, (guild_id, role_id))
+            self.database.execute_db_query(query, (guild_id, role_id))
         else:
             query = "UPDATE defaultrole SET role_id = ? WHERE guild_id = ?"
-            self.execute_db_query(query, (role_id, guild_id))
+            self.database.execute_db_query(query, (role_id, guild_id))
         #* Sends a message
         await command_context.response.send_message(f"Default Role set to {default_role.mention}", ephemeral=True, delete_after=5)  
 
@@ -519,19 +536,19 @@ class CommandHandler(commands.Cog):
         guild_id = command_context.guild.id
         #* Fetches the existing levelsys, if there is one
         levelsys_query = LEVELSYS_QUERY
-        levelsys = self.fetch_from_db(levelsys_query, (guild_id,))
+        levelsys = self.database.fetch_one_from_db(levelsys_query, (guild_id,))
 
         #* If there's no levelsys, insert it into the database, otherwise update it
         if not levelsys:
             query = LVLSYS_INSERT_QUERY
-            self.execute_db_query(query, (True, 0, 0, None, guild_id))
+            self.database.execute_db_query(query, (True, 0, 0, None, guild_id))
         else:
             #*If the levelsys is already enabled, send a message 
-            if levelsys[0] and levelsys[0][0]:
-                await command_context.response.send_message("The Leveling System is already enabled!")
+            if levelsys[0]:
+                await command_context.response.send_message("The Leveling System is already enabled!", ephemeral=True, delete_after=5)
                 return
             query = "UPDATE levelsettings SET levelsys = ? WHERE guild_id = ?"
-            self.execute_db_query(query, (True, guild_id))
+            self.database.execute_db_query(query, (True, guild_id))
         #* Sends a message
         await command_context.response.send_message("Leveling System Enabled!", ephemeral=True, delete_after=5)
 
@@ -542,19 +559,19 @@ class CommandHandler(commands.Cog):
         guild_id = interaction.guild.id
         #* Fetches the existing levelsys, if there is one
         levelsys_query = LEVELSYS_QUERY
-        levelsys = self.fetch_from_db(levelsys_query, (guild_id,))
+        levelsys = self.database.fetch_one_from_db(levelsys_query, (guild_id,))
 
         #* If there's no levelsys, insert it into the database, otherwise update it
         if not levelsys:
             query = LVLSYS_INSERT_QUERY
-            self.execute_db_query(query, (False, 0, 0, None, guild_id))
+            self.database.execute_db_query(query, (False, 0, 0, None, guild_id))
         else:
             #* If the levelsys is already enabled, send a message
-            if levelsys and levelsys[0] and not levelsys[0][0]:
+            if not levelsys[0]:
                 await interaction.response.send_message("The Leveling System is already disabled!", ephemeral=True, delete_after=5)
                 return
             query = "UPDATE levelsettings SET levelsys = ? WHERE guild_id = ?"
-            self.execute_db_query(query, (guild_id, False))
+            self.database.execute_db_query(query, (False, guild_id))
         #* Sends a message
         await interaction.response.send_message("Leveling System Disabled!", ephemeral=True, delete_after=5)
 
@@ -568,17 +585,17 @@ class CommandHandler(commands.Cog):
 
         #* Check if leveling system is enabled
         levelsys_query = LEVELSYS_QUERY
-        levelsys = self.fetch_from_db(levelsys_query, (guild_id,))
+        levelsys = self.database.fetch_one_from_db(levelsys_query, (guild_id,))
 
-        if levelsys and levelsys[0] and not levelsys[0][0]:
+        if not levelsys[0]:
             await command_context.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
         
         #* Fetches the existing reward role, if there is one
         role_tf_query = "SELECT role FROM levelsettings WHERE role = ? AND guild_id = ?"
-        role_tf = self.fetch_from_db(role_tf_query, (role_id, guild_id))
+        role_tf = self.database.fetch_one_from_db(role_tf_query, (role_id, guild_id))
         level_tf_query = "SELECT role FROM levelsettings WHERE levelreq = ? AND guild_id = ?"
-        level_tf = self.fetch_from_db(level_tf_query, (reward_level, guild_id))
+        level_tf = self.database.fetch_one_from_db(level_tf_query, (reward_level, guild_id))
 
         #* If there's no reward role, insert it into the database, otherwise update it
         if role_tf and level_tf:
@@ -587,7 +604,7 @@ class CommandHandler(commands.Cog):
         
         #* If there's no reward role, insert it into the database, otherwise update it
         query = "INSERT INTO levelsettings VALUES (?,?,?,?)"
-        self.execute_db_query(query, (True, role_id, reward_level, None, guild_id))
+        self.database.execute_db_query(query, (True, role_id, reward_level, None, guild_id))
         await command_context.response.send_message(f"Set {reward_role.mention} as a reward for level {reward_level}!", ephemeral=True, delete_after=5)
     
     @slvl.command(name="removereward", description="Removes a Level Reward")
@@ -599,15 +616,15 @@ class CommandHandler(commands.Cog):
 
         #* Check if leveling system is enabled
         levelsys_query = LEVELSYS_QUERY
-        levelsys = self.fetch_from_db(levelsys_query, guild_id,)
+        levelsys = self.database.fetch_one_from_db(levelsys_query, (guild_id,))
 
-        if levelsys and levelsys[0] and not levelsys[0][0]:
+        if not levelsys[0]:
             await command_context.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
 
         #* Fetches the existing reward role, if there is one
         query = "DELETE FROM levelsettings WHERE levelreq = ? AND guild_id = ?"
-        self.execute_db_query(query, (reward_level, guild_id))
+        self.database.execute_db_query(query, (reward_level, guild_id))
         await command_context.response.send_message(f"Removed the reward for level {reward_level}!", ephemeral=True, delete_after=5)
 
     @slvl.command(name="setlvlupmessage", description="Sets the Level Up Message")
@@ -618,23 +635,23 @@ class CommandHandler(commands.Cog):
         guild_id = command_context.guild.id
         #* Check if leveling system is enabled
         levelsys_query = LEVELSYS_QUERY
-        levelsys = self.fetch_from_db(levelsys_query, (guild_id,))
+        levelsys = self.database.fetch_one_from_db(levelsys_query, (guild_id,))
         #* If the leveling system is disabled, send a message
-        if levelsys is None or not levelsys[0]:
+        if not levelsys[0]:
             await command_context.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
 
         #* Fetches the existing level up message, if there is one
         level_up_message_query = "SELECT message FROM levelsettings WHERE guild_id = ?"
-        lvlupmessage = self.fetch_from_db(level_up_message_query, (guild_id,))
+        lvlupmessage = self.database.fetch_one_from_db(level_up_message_query, (guild_id,))
 
         #* If there's no level up message, insert it into the database, otherwise update it
         if lvlupmessage:
             query = "UPDATE levelsettings SET message = ? WHERE guild_id = ?"
-            self.execute_db_query(query, (level_up_message, guild_id))
+            self.database.execute_db_query(query, (level_up_message, guild_id))
         else:
             query = LVLSYS_INSERT_QUERY
-            self.execute_db_query(query, (True, 0, 0, level_up_message, guild_id))
+            self.database.execute_db_query(query, (True, 0, 0, level_up_message, guild_id))
             self.insert_message(guild_id, level_up_message)
 
         #* Sends a message
@@ -647,14 +664,14 @@ class CommandHandler(commands.Cog):
         guild_id = command_context.guild.id
         #* Check if leveling system is enabled
         levelsys_query = LEVELSYS_QUERY
-        levelsys = self.fetch_from_db(levelsys_query, (guild_id,))
+        levelsys = self.database.fetch_one_from_db(levelsys_query, (guild_id,))
         #* If the leveling system is disabled, send a message
-        if levelsys is None or not levelsys[0]:
+        if not levelsys[0]:
             await command_context.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
         #* Resets the level up message
         query = "UPDATE levelsettings SET message = ? WHERE guild_id = ?"
-        self.execute_db_query(query, (None, guild_id))
+        self.database.execute_db_query(query, (None, guild_id))
         await command_context.response.send_message("Level Up Message reset!", ephemeral=True, delete_after=5)
 
     @slvl.command(name="setlvl", description="Sets the User's Level")
@@ -665,22 +682,22 @@ class CommandHandler(commands.Cog):
         guild_id = command_context.guild.id
         #* Check if leveling system is enabled
         levelsys_query = LEVELSYS_QUERY
-        levelsys = self.fetch_from_db(levelsys_query, (guild_id,))
+        levelsys = self.database.fetch_one_from_db(levelsys_query, (guild_id,))
         #* If the leveling system is disabled, send a message
-        if levelsys and levelsys[0] and not levelsys[0][0]:
+        if not levelsys[0]:
             await command_context.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
         #* Fetches the existing level, if there is one
         level_query = "SELECT level FROM levels WHERE user = ? AND guild = ?"
-        existing_level = self.fetch_from_db(level_query, (user.id, guild_id))
+        existing_level = self.database.fetch_one_from_db(level_query, (user.id, guild_id))
         #* If there's no level, insert it into the database, otherwise update it
         if existing_level:
             #Set the level to the new level and xp 0
             query = "UPDATE levels SET level = ?, xp = ? WHERE user = ? AND guild = ?"
-            self.execute_db_query(query, (level, 0, user.id, guild_id))
+            self.database.execute_db_query(query, (level, 0, user.id, guild_id))
         else:
             query = "INSERT INTO levels VALUES (?,?,?,?)"
-            self.execute_db_query(query, (level, 0, user.id, guild_id))
+            self.database.execute_db_query(query, (level, 0, user.id, guild_id))
         #* Sends a message
         await command_context.response.send_message(f"Set {user.mention}'s level to {level}!", ephemeral=True, delete_after=5)
 
@@ -766,7 +783,7 @@ class CommandHandler(commands.Cog):
     async def checkStreamer(self, streamer):
         #* Fetches the streamer from the database
         query = "SELECT * FROM twitch WHERE twitch_user = ?"
-        return self.fetch_from_db(query, (streamer,))
+        return self.database.fetch_one_from_db(query, (streamer,))
 
     """
         The function `sum_rolled_dice` takes a string representing dice rolls and
@@ -991,6 +1008,7 @@ class CommandHandler(commands.Cog):
         em.add_field(name = "Fun Commands", value = "Some Fun Bot Commands", inline = False)
         em.add_field(name = "/ping", value = "The bot replies with Pong!", inline = False)
         em.add_field(name = "/coinflip", value = "This command lets you flip a coin", inline = False)
+        em.add_field(name = "/joke", value = "This command sends a random joke", inline = False)
         em.add_field(name = "/rps ✌️/🤜/✋", value = "This comand allows to play a game of rock paper scissors with the bot", inline = False)
         em.add_field(name = "/rpsstats", value = "This comand allows you to view your RPS Stats", inline = False)
         em.add_field(name = "/rpsleaderboard", value = "This comand allows you to view the RPS Leaderboard", inline = False)
@@ -1088,17 +1106,17 @@ class CommandHandler(commands.Cog):
     async def getLvlAndXp(self, member, guild):
         #*Gets the user's xp and level from the database
         xp_query = "SELECT xp FROM levels WHERE user = ? AND guild = ?"
-        xp = self.fetch_from_db(xp_query, (member.id, guild.id))
+        xp = self.database.fetch_one_from_db(xp_query, (member.id, guild.id))
         level_query = "SELECT level FROM levels WHERE user = ? AND guild = ?"
-        level = self.fetch_from_db(level_query, (member.id, guild.id))
+        level = self.database.fetch_one_from_db(level_query, (member.id, guild.id))
         #*If there's no xp or level, insert it into the database and return 0 for each
         if not xp or not level:
-            cursor.execute("INSERT INTO levels (level, xp, user, guild) VALUES (?,?,?,?)", (0,0,member.id, guild.id))
-            database.commit()
+            query = "INSERT INTO levels (level, xp, user, guild) VALUES (?,?,?,?)"
+            self.database.execute_db_query(query, (0,0,member.id, guild.id))
             return 0, 0
         #*Return the xp and level
-        xp = xp[0][0]
-        level = level[0][0]
+        xp = xp[0]
+        level = level[0]
         return xp, level
 
     """
@@ -1201,14 +1219,14 @@ class CommandHandler(commands.Cog):
     def get_score(self, interaction):
         #*Gets the user's score from the database
         score_query = "SELECT score FROM rps WHERE guild_id = ? AND user_id = ?"
-        score = self.fetch_from_db(score_query, (interaction.guild.id, interaction.user.id))
+        score = self.database.fetch_one_from_db(score_query, (interaction.guild.id, interaction.user.id))
         #*If there's no score, insert it into the database
         if not score:
             query = "INSERT INTO rps VALUES (?,?,?)"
-            self.execute_db_query(query, (interaction.guild.id, interaction.user.id, 0))
+            self.database.execute_db_query(query, (interaction.guild.id, interaction.user.id, 0))
             return 0
         else:
-            return score[0]
+            return score
 
     """
     The function determines the result of a game based on the user's and bot's hand gestures.
@@ -1269,7 +1287,7 @@ class CommandHandler(commands.Cog):
     """
     async def create_score_embed(self, score):
         em = discord.Embed(title="Your RPS Stats", description="These are your RPS Stats", color=discord.Colour.orange())
-        em.add_field(name="Score:", value=score[0], inline=False)
+        em.add_field(name="Score:", value=score, inline=False)
         return em
     
 
@@ -1323,7 +1341,7 @@ class CommandHandler(commands.Cog):
     """
     async def purge_messages_by_date(self, interaction, day, month, year):
         await interaction.channel.purge(after=datetime(year, month, day))
-        await interaction.channel.send(f"Deleted all messages after {day}/{month}/{year}")
+        await interaction.channel.send(f"Deleted all messages after {day}/{month}/{year}", ephemeral=True, delete_after=5)
 
     """
     The function `purge_messages_by_limit` deletes a specified number of messages in a channel and
@@ -1338,39 +1356,7 @@ class CommandHandler(commands.Cog):
     """
     async def purge_messages_by_limit(self, interaction, limit):
         await interaction.channel.purge(limit=int(limit) + 1)
-        await interaction.channel.send(f"Deleted {limit} messages")
-    
-
-    """
-    The function executes a database query with the given query and parameters, and commits the changes
-    to the database.
-    
-    :param query: The query parameter is a string that represents the SQL query you want to execute on
-    the database. It can be any valid SQL statement, such as SELECT, INSERT, UPDATE, DELETE, etc
-    :param params: The "params" parameter is a tuple or list that contains the values to be substituted
-    into the query. These values are used to replace the placeholders in the query string. The
-    placeholders are typically represented by question marks (?) or percent signs (%s) in the query
-    string. The values in the "params
-    """
-    def execute_db_query(self, query, params):
-        cursor.execute(query, params)
-        database.commit()
-    
-    """
-    The function fetches data from a database using a given query and parameters.
-    
-    :param query: The query parameter is a string that represents the SQL query you want to execute on
-    the database. It only accepts SELECT statements.
-    :param params: The "params" parameter is a tuple that contains the values to be substituted into the
-    query string. These values are used to replace the placeholders in the query string, if any. The
-    placeholders are typically represented by question marks (?) or percent signs (%s) in the query
-    string
-    :return: The fetch_from_db function is returning the result of the cursor.fetchall() method, which
-    is a list of all the rows returned by the query execution.
-    """
-    def fetch_from_db(self, query, params):
-        cursor.execute(query, params)
-        return cursor.fetchall()
+        await interaction.channel.send(f"Deleted {limit} messages", ephemeral=True, delete_after=5)
     
 async def setup(bot) -> None:
     await bot.add_cog(CommandHandler(bot))
