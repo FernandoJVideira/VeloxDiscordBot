@@ -36,45 +36,6 @@ class FunCommands(commands.Cog):
                 data = await response.json()
                 await interaction.response.send_message(data["joke"])
 
-    #* Sends a scream message
-    @app_commands.command(name="scream", description="The name says it all")
-    @app_commands.allowed_installs(guilds=True, users=True)
-    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def scream(self, interaction: discord.Interaction):
-        if interaction.guild:
-            #* Check for the role only if used in a guild
-            if "Panik" not in [role.name for role in interaction.user.roles]:
-                return await interaction.response.send_message("You must have the Panik role to use this command.", ephemeral=True)
-        
-        await interaction.response.send_message("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-
-    #* Sends a furry alert
-    @app_commands.command(name="furryalert", description="Alerts everyone of an impending furry invasion")
-    @app_commands.allowed_installs(guilds=True, users=True)
-    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def furryAlert(self, ctx: discord.Interaction):
-        if ctx.guild:
-            # Check for the role only if used in a guild
-            if "Panik" not in [role.name for role in ctx.user.roles]:
-                return await ctx.response.send_message("You must have the Panik role to use this command.", ephemeral=True)
-            
-            allowed_mentions = discord.AllowedMentions(everyone=True)
-            await ctx.response.send_message(f"{ctx.guild.default_role} FURRY ALERT, IMPENDING FURRY INVASION! ALERT!", allowed_mentions=allowed_mentions)
-        else:
-            # If used as a user application (DM)
-            await ctx.response.send_message("@here FURRY ALERT, IMPENDING FURRY INVASION! ALERT!")
-
-    #* Yells what the user says
-    @app_commands.command(name="yell", description="Yells what the user says")
-    @app_commands.describe(message = "The message to yell")
-    @app_commands.allowed_installs(guilds=True, users=True)
-    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def yell(self, ctx : discord.Interaction, *, message : str):
-        if ctx.guild:
-            if "Panik" not in [role.name for role in ctx.user.roles]:
-                return await ctx.response.send_message("You must have the Panik role to use this command.", ephemeral=True)
-        await ctx.response.send_message(f"{message.upper()}!")
-
     #* Sends a message with a coinflip
     @app_commands.command(name="coinflip", description="Flips a coin")
     @app_commands.allowed_installs(guilds=True, users=True)
