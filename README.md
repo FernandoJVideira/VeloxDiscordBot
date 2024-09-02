@@ -2,6 +2,10 @@
 
 An open-source discord bot made in Python and capable of running using Docker.
 
+# Join this Project
+
+If you'd like to join this project, just head to the [Discord Server](https://discord.gg/YAjvy4kF8W) to keep track of the development and give suggestions.
+
 ## Description
 
 Velox bot is a general-purpose discord bot made in python. It is equiped with commands from moderation to playing music. It does so by connecting to a [Lavalink](https://github.com/lavalink-devs/Lavalink) server and using it to stream the songs. (And yes, it supports Youtube playback).
