@@ -96,11 +96,11 @@ class EventHandler(commands.Cog):
             #*Get the role reward, if any
             query = "SELECT role FROM levelsettings WHERE levelreq = ? AND guild_id = ?"
             role = self.database.fetch_one_from_db(query, (level,guild.id,))
-            self.event_utils.updateMemberLvl(author, guild, level)
+            await self.event_utils.updateMemberLvl(author, guild, level)
             msg = await self.event_utils.setDefaultLvlUpMsg(guild, author, level)
             #* Send the message and set the role reward, if any
             if role:
-                await self.setLvlRoleReward(role[0], guild, msg, author, level, level_up_channel, message)
+                await self.event_utils.setLvlRoleReward(role[0], guild, msg, author, level, level_up_channel, message)
             if level_up_channel:
                 await level_up_channel.send(msg)
             else:

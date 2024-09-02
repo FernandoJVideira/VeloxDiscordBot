@@ -1,10 +1,10 @@
 import os
-from dotenv import load_dotenv   # Uncomment this line for local development
+#from dotenv import load_dotenv   # Uncomment this line for local development
 from cogs.DatabaseHandler import DatabaseHandler
 import discord
 from discord.ext import commands
+from cogs.constants import EXTENTIONS
 
-EXTENTIONS = ["cogs.Sync", "cogs.MusicBot", "cogs.Events.EventHandler", "cogs.Commands.CommandHandler"]
 class VeloxBot(commands.Bot):
     def __init__(self):
         super().__init__(
@@ -20,5 +20,5 @@ class VeloxBot(commands.Bot):
             await bot.load_extension(extention)
 
 bot = VeloxBot()
-load_dotenv("./vars.env")   # Uncomment this line for local development
+#load_dotenv("./vars.env")   # Uncomment this line for local development
 bot.run(os.getenv("TOKEN"))
