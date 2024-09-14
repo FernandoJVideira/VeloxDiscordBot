@@ -32,7 +32,7 @@ class EventUtils:
     #* Sets the default welcome message for the guild
     async def setDefaultWelcomeMessages(self, guild):
         welcome_message = f"Welcome to {guild.name}! Have fun!"
-        welcome_gif = "https://media.giphy.com/media/61XS37iBats8J3QLwF/giphy.gif"
+        welcome_gif = "https://media.giphy.com/media/XD9o33QG9BoMis7iM4/giphy.gif"
         welcome_query = "INSERT INTO welcome VALUES (?,?,?,?,?)"
         self.database.execute_db_query(welcome_query, (guild.id, None, welcome_message, welcome_message,welcome_gif))
     
@@ -55,6 +55,8 @@ class EventUtils:
         if role:
             #* Gets the guilds role
             default_role = guild.get_role(role[0])
+        else:
+            return
         try:
             #* Adds the default role to the member
             await member.add_roles(default_role)

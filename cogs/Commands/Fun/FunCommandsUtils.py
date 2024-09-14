@@ -209,7 +209,7 @@ class FunCommandsUtils:
         embed = discord.Embed(title=result, description="Here's the result of the game", color=color)
         embed.add_field(name="You chose:", value=user_hand, inline=False)
         embed.add_field(name="I chose:", value=bot_hand, inline=False)
-        embed.add_field(name="Score:", value=score[0], inline=False)
+        embed.add_field(name="Score:", value=score, inline=False)
         await interaction.response.send_message(embed=embed)
 
 

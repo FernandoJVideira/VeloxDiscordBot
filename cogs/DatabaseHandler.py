@@ -93,6 +93,7 @@ class DatabaseHandler:
                     if params:
                         cursor.execute(query, params)
                     else:
+                        
                         cursor.execute(query)
                     return cursor.fetchall()
             except sqlite3.OperationalError as e:

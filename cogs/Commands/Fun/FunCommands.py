@@ -87,11 +87,11 @@ class FunCommands(commands.Cog):
         result, color = await self.utils.determine_game_result(hand, bot_hand)
         #* Updates the user's score
         if result == "You won!":
-            score = (score[0] + 1,)
+            new_score = score[0] + 1
             query = "UPDATE rps SET score = ? WHERE guild_id = ? AND user_id = ?"
-            self.database.execute_db_query(query, (score[0], interaction.guild.id, interaction.user.id))
+            self.database.execute_db_query(query, (new_score, interaction.guild.id, interaction.user.id))
         #* Sends the game result
-        await self.utils.send_game_result(interaction, result, hand, bot_hand, score, color)
+        await self.utils.send_game_result(interaction, result, hand, bot_hand, new_score, color)
 
     #* Shows the user's RPS Stats
     @app_commands.command(name="rpsstats", description="Shows your RPS Stats")
@@ -163,16 +163,6 @@ class FunCommands(commands.Cog):
         await interaction.user.create_dm()
         for em in embeds:
             await interaction.user.dm_channel.send(embed = em)
-
-
-    #*----------------------------------------------//----------------------------------------------#
-    #* These functions are used by the commands in case of an error
-    #* They simply send a message to the user acording to the error
-
-    @scream.error
-    async def scream_error(self, interaction: discord.Interaction, error):
-        if isinstance(error, app_commands.errors.MissingRole):
-            await interaction.response.send_message("You must have the Panik role to use this command.", ephemeral=True, delete_after=5)
     
 async def setup(bot) -> None:
     await bot.add_cog(FunCommands(bot))

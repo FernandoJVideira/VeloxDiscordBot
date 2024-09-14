@@ -4,7 +4,7 @@ from discord.app_commands import Choice
 from discord.ext import commands
 from cogs.DatabaseHandler import DatabaseHandler
 from cogs.Commands.Config.BotConfigUtils import BotConfigUtils
-
+from cogs.Events.EventUtils import EventUtils
 
 class BotConfig(commands.Cog):
     
@@ -12,6 +12,7 @@ class BotConfig(commands.Cog):
         self.bot = bot
         self.database = DatabaseHandler()
         self.utils = BotConfigUtils(self.database)
+        self.event_utils = EventUtils(self.database)
 
 
     #* Bot Config Commands
@@ -25,6 +26,12 @@ class BotConfig(commands.Cog):
         #* Gets the guild id and the channel id
         guild_id = interaction.guild.id
         channel_id = welcome_channel.id
+        #* Fetches the existing welcome channel, if there is one
+        query = "SELECT welcome_channel_id FROM welcome WHERE guild_id = ?"
+        channel = self.database.fetch_one_from_db(query, (guild_id,))
+
+        if channel is None:
+            await self.event_utils.setDefaultWelcomeMessages(interaction.guild)
 
         query = "UPDATE welcome SET welcome_channel_id = ? WHERE guild_id = ?"
         self.database.execute_db_query(query, (channel_id, guild_id))
@@ -131,8 +138,7 @@ class BotConfig(commands.Cog):
         if not not_channel:
             await interaction.response.send_message("Please set a Notification Channel first!", ephemeral=True, delete_after=5)
         else:
-            streamer = self.utils.checkStreamer(streamer)
-            if len(streamer) > 0:
+            if await self.utils.checkStreamer(streamer) is not None:
                 await interaction.response.send_message("This streamer is already in the Streamers List!", ephemeral=True, delete_after=5)
                 return
             query = "INSERT INTO twitch VALUES (?,?,?)"

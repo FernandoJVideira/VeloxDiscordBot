@@ -2,7 +2,6 @@ import datetime
 import discord
 import wavelink
 
-
 class MusicUtils:
     def __init__(self, bot):
         self.bot = bot

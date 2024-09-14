@@ -19,12 +19,13 @@ class EventHandler(commands.Cog):
         await self.event_utils.set_status()
         if not self.live_notifs_loop.is_running():
             self.live_notifs_loop.start()
+            print("Live notifs loop started")
 
     #* When the bot joins a guild, set the level system to disabled by default
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
         await self.event_utils.setLvlSysDefault(guild)
-        await self.setDefaultWelcomeMessages(guild)
+        await self.event_utils.setDefaultWelcomeMessages(guild)
         await self.event_utils.set_status()
 
     #* When the bot leaves a guild, set the status to watching the amount of servers
@@ -39,13 +40,15 @@ class EventHandler(commands.Cog):
         guild_welcome_channel = await self.event_utils.get_channel("welcome_channel_id", "welcome", guild.id)
 
         query = "SELECT role_id FROM defaultrole WHERE guild_id = ?"
-        defaultrole = self.database.fetch_one_from_db(query, (guild.id,))
         
+        defaultrole = self.database.fetch_one_from_db(query, (guild.id,))
+
         await self.event_utils.setDefaultRole(guild, member, defaultrole)
 
         dmchannel = await member.create_dm()
         query = "SELECT welcome_dm FROM welcome WHERE guild_id = ?"
         welcome_message = self.database.fetch_one_from_db(query, (guild.id,))
+
         if welcome_message:
             await dmchannel.send(welcome_message[0])
 
@@ -77,7 +80,7 @@ class EventHandler(commands.Cog):
         levelsys = self.database.fetch_one_from_db(query, (guild.id,))
 
         #* If the level system is disabled, return
-        if not levelsys[0]:
+        if not levelsys or not levelsys[0]:
             return
         
         #* Get the user's xp and level
@@ -110,13 +113,14 @@ class EventHandler(commands.Cog):
     async def live_notifs_loop(self):
         #* Gets all the guilds that have twitch streamers
         guilds_query = "SELECT guild_id FROM twitch"
-        guilds = self.database.fetch_all_from_db(guilds_query, ())
-
+        guilds = self.database.fetch_all_from_db(guilds_query,())
+        
         #* Checks if there are any guilds with twitch streamers
         if guilds is not None:
             for guild_id in guilds:
                 #* Gets the guild, 'twitch streams' channel
                 channel = await self.event_utils.get_channel("twitch_channel_id", "twitch_config", guild_id[0])
+
                 #* Gets all the streamers in the guild
                 twitch_users = await self.event_utils.getTwitchUsers(guild_id)
 
@@ -129,7 +133,7 @@ class EventHandler(commands.Cog):
 
                     #* If the streamer is live
                     if isLive is True:
-                        await self.sendNotificiation(streamer_status, channel, twitch_user)
+                        await self.event_utils.sendNotificiation(streamer_status, channel, twitch_user)
                     else:
                         #* Update the streamer's status to not live
                         actual_status = 'not live'

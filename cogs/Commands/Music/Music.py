@@ -1,4 +1,3 @@
-import datetime
 import os
 import discord
 import asyncio
@@ -13,8 +12,6 @@ from cogs.constants import (
     UNKNOWN_ERROR_MESSAGE, 
     ROLE_REQUIRED_MESSAGE
 )
-
-
 
 class Music(commands.Cog):
 
@@ -44,7 +41,7 @@ class Music(commands.Cog):
             return
         track: wavelink.Playable = payload.track
         embed: discord.Embed = await self.musicUtils.createEmbed(track, "Now Playing 🎵")
-        await player.home.send(embed=embed, view=ButtonView(self))
+        await player.home.send(embed=embed, view=ButtonView(self),)
 
     #* Commands
     #* Play command, plays a song in the voice channel
