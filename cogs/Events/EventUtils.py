@@ -26,7 +26,6 @@ class EventUtils:
             channel = guild.get_channel(channel_id[0])
         else:
             channel = None
-              
         return channel
     
     #* Sets the default welcome message for the guild
@@ -78,7 +77,9 @@ class EventUtils:
             #TODO: Set the client id to the one from the .env file
             async with session.post(url, json={"query": query, "variables": {}}, headers={"client-id": "kimne78kx3ncx6brgo4mv6wki5h1ko"}) as response:
                 data = await response.json()
-                return True if data["data"]["user"]["stream"] is not None else False
+                if data and "data" in data and data["data"] and "user" in data["data"] and data["data"]["user"]:
+                    return data["data"]["user"]["stream"] is not None
+                return False
             
     #* Gets the streamer's current status from the database
     async def getStreamerStatusDB(self, twitch_user, guild_id):
