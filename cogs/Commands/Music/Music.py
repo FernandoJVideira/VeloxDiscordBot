@@ -43,9 +43,12 @@ class Music(commands.Cog):
         embed: discord.Embed = await self.musicUtils.createEmbed(track, "Now Playing 🎵")
         await player.home.send(embed=embed, view=ButtonView(self),)
 
-    #* Commands
+    
+        #* Defer the bot's response
+        await interaction.response.defer()#* Commands
     #* Play command, plays a song in the voice channel
     @app_commands.command(name="play", description="Play a song in your voice channel.")
+    @app_commands.checks.has_role("DJ")
     @app_commands.describe(search="The song you want to play.")
     @app_commands.describe(source="The source of the song.")
     @app_commands.choices(source = [
@@ -53,15 +56,21 @@ class Music(commands.Cog):
         Choice(name = "SoundCloud", value = "soundcloud"),
         ])
     async def play(self, interaction: discord.Interaction, search: str, source: str = None):
+        #* Verify if the user is in a voice channel
+        if interaction.user.voice is None:
+            await interaction.response.send_message("You must be in a voice channel to use this command.", ephemeral=True, delete_after=5)
+            return
+        
+        #* Verify if the user is in the same voice channel as the bot
+        if interaction.guild.voice_client and interaction.guild.voice_client.channel != interaction.user.voice.channel:
+            await interaction.response.send_message("You must be in the same voice channel as the bot.", ephemeral=True, delete_after=5)
+            return
+        
         #* Defer the bot's response
         await interaction.response.defer()
 
-        #* Verify if the user is in a voice channel
-        if not await self.musicUtils.checkVoiceChannel(interaction) or not await self.musicUtils.checkDJRole(interaction):
-            return
-        
         #* Get the source of the song based on the search query or the source parameter
-        source = await self.musicUtils.checkURL(interaction, search) if source is None else await self.musicUtils.getSource(source)
+        source = await self.musicUtils.checkURL(search) if source is None else await self.musicUtils.getSource(source)
         
         #* Verify if the bot is in a voice channel and connect if not
         vc = await self.musicUtils.connectToChannel(interaction)
@@ -82,7 +91,7 @@ class Music(commands.Cog):
         await asyncio.sleep(1)  #* wait for 1 second for the vc.is_playing() to be updated
         if not vc.playing and not vc.paused:
             await interaction.followup.send(f"Now Playing {track.name if isinstance(track, wavelink.Playlist) else track.title}")
-            await self.musicUtils.playTrack(interaction, vc, track)
+            await self.musicUtils.playTrack(vc, track)
         else:
             queue_embed = await self.musicUtils.createEmbed(track, "Added to queue 🎵")
             await interaction.followup.send(embed=queue_embed)
@@ -204,7 +213,7 @@ class Music(commands.Cog):
     #* Error Handling, these functions are called when an error occurs sending a message to the user
     @play.error
     async def play_error(self, interaction: discord.Interaction, error):
-        # Check if the interaction is still valid
+        #* Check if the interaction is still valid
         if not interaction.response.is_done():
             if isinstance(error, app_commands.errors.MissingRole):
                 await interaction.response.send_message(ROLE_REQUIRED_MESSAGE, ephemeral=True, delete_after=5)

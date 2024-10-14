@@ -97,7 +97,7 @@ class EventUtils:
         #* Check if the streamer's status is not live
         if streamer_status[0] == 'not live':
             await channel.send(
-                f":red_circle: **LIVE**\n @everyone is now streaming on Twitch!"
+                f":red_circle: **LIVE**\n @everyone {twitch_user[0]} is now live on Twitch!"
                 f"\n https://www.twitch.tv/{twitch_user[0]}")
             #* Update the streamer's status to live
             actual_status = 'live'

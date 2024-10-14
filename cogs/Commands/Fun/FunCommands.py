@@ -98,12 +98,13 @@ class FunCommands(commands.Cog):
             return await interaction.response.send_message("Invalid hand! Please choose between ✌️, ✋ or 🤜", ephemeral=True, delete_after=5)
         #* Gets the user's score 
         score = await self.utils.get_score(interaction)
+        new_score = score[0]
         #* If the user wins the returned color is green, otherwise it's red
         #* The result is the game result
         result, color = await self.utils.determine_game_result(hand, bot_hand)
         #* Updates the user's score
         if result == "You won!":
-            new_score = score[0] + 1
+            new_score += 1
             query = "UPDATE rps SET score = ? WHERE guild_id = ? AND user_id = ?"
             self.database.execute_db_query(query, (new_score, interaction.guild.id, interaction.user.id))
         #* Sends the game result
