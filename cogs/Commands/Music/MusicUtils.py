@@ -1,5 +1,6 @@
 import datetime
 import discord
+from discord.utils import get
 import wavelink
 
 class MusicUtils:
@@ -25,6 +26,33 @@ class MusicUtils:
             return wavelink.TrackSource.YouTubeMusic
         else:
             return wavelink.TrackSource.YouTube
+        
+
+    async def checkDJRole(self, interaction: discord.Interaction):
+        #*Check if the user has the DJ role
+        dj_role = get(interaction.guild.roles, name="DJ")
+        if dj_role not in interaction.user.roles:
+            await interaction.response.send_message("You must have the DJ role to use this command.", ephemeral=True, delete_after=5)
+            return False
+        return True
+    
+    async def checkVoiceChannel(self, interaction: discord.Interaction):
+        #* Verify if the user is in a voice channel
+        if interaction.user.voice is None:
+            await interaction.response.send_message(
+                "You must be in a voice channel to use this command.",
+                ephemeral=True,
+                delete_after=5
+            )
+            return False
+        elif interaction.guild.voice_client and interaction.guild.voice_client.channel != interaction.user.voice.channel:
+            await interaction.response.send_message(
+                "You must be in the same voice channel as the bot.",
+                ephemeral=True,
+                delete_after=5
+            )
+            return False
+        return True
 
 
     async def getSource(self, source: str):
@@ -40,7 +68,7 @@ class MusicUtils:
         #*If a playlist is searched, search for the playlist, else search for the song
         tracks: wavelink.Search = await wavelink.Playable.search(search, source=source)
         if not tracks:
-            await interaction.followup.send(f'No tracks found with query: `{search}`')
+            await interaction.response.send_message(f'No tracks found with query: `{search}`')
             return
 
         if not isinstance(tracks, wavelink.Playlist):

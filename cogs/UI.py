@@ -16,12 +16,18 @@ class ButtonUI(discord.ui.Button):
             await self.music_cog.loop(interaction)
         elif self.custom_id == "queueloop_button":
             await self.music_cog.queueLoop(interaction)
+        elif self.custom_id == "seek_back":
+            await self.music_cog.seek(interaction, -10000)
+        elif self.custom_id == "seek_ahead":
+            await self.music_cog.seek(interaction, 10000)
         # Add more button interactions as needed
 
 class ButtonView(discord.ui.View):
     def __init__(self, music_cog):
         super().__init__(timeout=None)
-        self.add_item(ButtonUI(label="⏯️", style=discord.ButtonStyle.secondary, custom_id="pause_button", music_cog=music_cog))
+        self.add_item(ButtonUI(label="⏪", style=discord.ButtonStyle.secondary, custom_id="seek_back", music_cog=music_cog))
+        self.add_item(ButtonUI(label="⏯️", style=discord.ButtonStyle.primary, custom_id="pause_button", music_cog=music_cog))
+        self.add_item(ButtonUI(label="⏩", style=discord.ButtonStyle.secondary, custom_id="seek_ahead", music_cog=music_cog))
         self.add_item(ButtonUI(label="⏭️", style=discord.ButtonStyle.success, custom_id="skip_button", music_cog=music_cog))
         self.add_item(ButtonUI(label="⏹️", style=discord.ButtonStyle.danger, custom_id="stop_button", music_cog=music_cog))
         self.add_item(ButtonUI(label="🔁", style=discord.ButtonStyle.primary, custom_id="loop_button", music_cog=music_cog))
