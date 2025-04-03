@@ -1,28 +1,11 @@
 import datetime
 import discord
+from discord.utils import get
 import wavelink
 
 class MusicUtils:
     def __init__(self, bot):
         self.bot = bot
-
-    async def checkDJRole(self, interaction: discord.Interaction):
-        if not "DJ" in [role.name for role in interaction.user.roles]:
-            await interaction.response.send_message("You must have the DJ role to use this command.", ephemeral=True, delete_after=5)
-            return False
-        return True
-
-
-    async def checkVoiceChannel(self, interaction: discord.Interaction):
-         #* Verify if the user is in a voice channel or in the same voice channel as the bot
-        if not interaction.user.voice:
-            await interaction.response.send_message("You must be in a voice channel to use this command.", ephemeral=True, delete_after=5)
-            return False
-        elif interaction.guild.voice_client and interaction.guild.voice_client.channel != interaction.user.voice.channel:
-            await interaction.response.send_message("You must be in the same voice channel as the bot.", ephemeral=True, delete_after=5)
-            return False
-        return True
-        
 
     async def connectToChannel(self, interaction: discord.Interaction):
         #*Verify if the bot is in a voice channel and connect if not
@@ -33,7 +16,7 @@ class MusicUtils:
         return vc
     
 
-    async def checkURL(self,interaction:discord.Interaction ,search: str):
+    async def checkURL(self, search: str):
         #*Check if the search query is a URL
         if search.startswith("https://youtu"):
             return wavelink.TrackSource.YouTube
@@ -43,6 +26,33 @@ class MusicUtils:
             return wavelink.TrackSource.YouTubeMusic
         else:
             return wavelink.TrackSource.YouTube
+        
+
+    async def checkDJRole(self, interaction: discord.Interaction):
+        #*Check if the user has the DJ role
+        dj_role = get(interaction.guild.roles, name="DJ")
+        if dj_role not in interaction.user.roles:
+            await interaction.response.send_message("You must have the DJ role to use this command.", ephemeral=True, delete_after=5)
+            return False
+        return True
+    
+    async def checkVoiceChannel(self, interaction: discord.Interaction):
+        #* Verify if the user is in a voice channel
+        if interaction.user.voice is None:
+            await interaction.response.send_message(
+                "You must be in a voice channel to use this command.",
+                ephemeral=True,
+                delete_after=5
+            )
+            return False
+        elif interaction.guild.voice_client and interaction.guild.voice_client.channel != interaction.user.voice.channel:
+            await interaction.response.send_message(
+                "You must be in the same voice channel as the bot.",
+                ephemeral=True,
+                delete_after=5
+            )
+            return False
+        return True
 
 
     async def getSource(self, source: str):
@@ -75,9 +85,9 @@ class MusicUtils:
         return em
     
 
-    async def playTrack(self, interaction: discord.Interaction, vc: wavelink.Player, tracks):
+    async def playTrack(self, vc: wavelink.Player, tracks):
         #*Play the track from the queue
-        await vc.play(vc.queue.get())
+        await vc.play(tracks)
     
 
     async def getQueueEmbed(self, vc: wavelink.Player):
@@ -93,5 +103,3 @@ class MusicUtils:
             songs.append(f"{song_counter}. {song}")
             em.add_field(name=f"{song_counter} - {song.title}", value=f"Duration: {str(datetime.timedelta(milliseconds=song.length))}", inline=False)
         return em
-
-   

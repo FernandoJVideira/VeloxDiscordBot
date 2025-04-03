@@ -23,10 +23,12 @@ class EventUtils:
         if channel_id:
             #* Gets the guild and the channel
             guild = self.bot.get_guild(guild_id)
-            channel = guild.get_channel(channel_id[0])
+            if guild:
+                channel = guild.get_channel(channel_id[0])
+            else:
+                channel = None
         else:
             channel = None
-              
         return channel
     
     #* Sets the default welcome message for the guild
@@ -78,7 +80,9 @@ class EventUtils:
             #TODO: Set the client id to the one from the .env file
             async with session.post(url, json={"query": query, "variables": {}}, headers={"client-id": "kimne78kx3ncx6brgo4mv6wki5h1ko"}) as response:
                 data = await response.json()
-                return True if data["data"]["user"]["stream"] is not None else False
+                if data and "data" in data and data["data"] and "user" in data["data"] and data["data"]["user"]:
+                    return data["data"]["user"]["stream"] is not None
+                return False
             
     #* Gets the streamer's current status from the database
     async def getStreamerStatusDB(self, twitch_user, guild_id):
@@ -96,7 +100,7 @@ class EventUtils:
         #* Check if the streamer's status is not live
         if streamer_status[0] == 'not live':
             await channel.send(
-                f":red_circle: **LIVE**\n @everyone is now streaming on Twitch!"
+                f":red_circle: **LIVE**\n @everyone {twitch_user[0]} is now live on Twitch!"
                 f"\n https://www.twitch.tv/{twitch_user[0]}")
             #* Update the streamer's status to live
             actual_status = 'live'

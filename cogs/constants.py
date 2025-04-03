@@ -2,7 +2,7 @@
 EXTENTIONS = [
     "cogs.Commands.Sync", 
     "cogs.Events.EventHandler", 
-    "cogs.Commands.Music.Music", 
+    #"cogs.Commands.Music.Music", 
     "cogs.Commands.Fun.FunCommands",
     "cogs.Commands.LevelSys.LevelSysConfig",
     "cogs.Commands.LevelSys.LevelSysCommands",
@@ -21,7 +21,8 @@ LVLSYS_DISABLED = "The Leveling System is disabled in this server!"
 
 # URLs
 EMBED_IMAGE = "https://th.bing.com/th/id/OIG3.1SD.1zAEYXWKZqiWkNOc?pid=ImgGn"
-API_URL = "https://icanhazdadjoke.com/"
+API_URL = "https://v2.jokeapi.dev/"
+JOKE_TYPES = ["Programming", "Miscellaneous", "Dark", "Pun", "Spooky", "Christmas"]
 
 # Database Queries
 LEVELSYS_QUERY = "SELECT levelsys FROM levelsettings WHERE guild_id = ?"

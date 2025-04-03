@@ -138,6 +138,9 @@ class BotConfig(commands.Cog):
         if not not_channel:
             await interaction.response.send_message("Please set a Notification Channel first!", ephemeral=True, delete_after=5)
         else:
+            #* If the streamer is a URL, remove the URL
+            if streamer.startswith("http://") or streamer.startswith("https://"):
+                streamer = streamer.rstrip('/').split('/')[-1]
             if await self.utils.checkStreamer(streamer) is not None:
                 await interaction.response.send_message("This streamer is already in the Streamers List!", ephemeral=True, delete_after=5)
                 return
@@ -149,6 +152,9 @@ class BotConfig(commands.Cog):
     @app_commands.describe(streamer = "The streamer to remove")
     @app_commands.checks.has_permissions(manage_guild = True)
     async def removeStreamer(self,interaction : discord.Interaction, streamer : str):
+        #* If the streamer is a URL, remove the URL
+        if streamer.startswith("http://") or streamer.startswith("https://"):
+            streamer = streamer.rstrip('/').split('/')[-1] 
         if await self.utils.checkStreamer(streamer) is None:
             await interaction.response.send_message("This streamer is not in the Streamers List!", ephemeral=True, delete_after=5)
             return

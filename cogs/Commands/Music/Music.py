@@ -19,9 +19,9 @@ class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.musicUtils = MusicUtils(bot)
+        self.should_disconnect = False
         
-    #* Setup hooks
-    #* 
+    #* Setup hooks 
     async def cog_load(self) -> None:
         #*Create the wavelink node
         nodes = [wavelink.Node(uri=os.getenv('LAVALINK_HOST'), password=os.getenv('LAVALINK_PASSWORD'))]
@@ -42,10 +42,25 @@ class Music(commands.Cog):
         track: wavelink.Playable = payload.track
         embed: discord.Embed = await self.musicUtils.createEmbed(track, "Now Playing 🎵")
         await player.home.send(embed=embed, view=ButtonView(self),)
+        self.should_disconnect = False 
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_end(self, payload: wavelink.TrackEndEventPayload) -> None:
+        player: wavelink.Player | None = payload.player
+        if not player or player.queue.mode is wavelink.QueueMode.loop:
+            return
+        if player.queue.is_empty:
+            self.should_disconnect = True
+            await asyncio.sleep(60)
+            if self.should_disconnect:
+                await player.disconnect()
+        else:
+            return
 
     #* Commands
     #* Play command, plays a song in the voice channel
     @app_commands.command(name="play", description="Play a song in your voice channel.")
+    @app_commands.checks.has_role("DJ")
     @app_commands.describe(search="The song you want to play.")
     @app_commands.describe(source="The source of the song.")
     @app_commands.choices(source = [
@@ -53,15 +68,18 @@ class Music(commands.Cog):
         Choice(name = "SoundCloud", value = "soundcloud"),
         ])
     async def play(self, interaction: discord.Interaction, search: str, source: str = None):
-        #* Defer the bot's response
-        await interaction.response.defer()
-
+       #* await interaction.response.defer()
+        
         #* Verify if the user is in a voice channel
-        if not await self.musicUtils.checkVoiceChannel(interaction) or not await self.musicUtils.checkDJRole(interaction):
+        if not await self.musicUtils.checkVoiceChannel(interaction):
+            return
+        
+        #* Verify if the user is in the same voice channel as the bot
+        if not await self.musicUtils.checkDJRole(interaction):
             return
         
         #* Get the source of the song based on the search query or the source parameter
-        source = await self.musicUtils.checkURL(interaction, search) if source is None else await self.musicUtils.getSource(source)
+        source = await self.musicUtils.checkURL(search) if source is None else await self.musicUtils.getSource(source)
         
         #* Verify if the bot is in a voice channel and connect if not
         vc = await self.musicUtils.connectToChannel(interaction)
@@ -71,21 +89,65 @@ class Music(commands.Cog):
         if not hasattr(vc, "home"):
             vc.home = interaction.channel
         elif vc.home != interaction.channel:
-            await interaction.followup.send(f"You can only play songs in {vc.home.mention}, as the player has already started there.")
+            await interaction.response.send_message(f"You can only play songs in {vc.home.mention}, as the player has already started there.")
             return
 
         #* Get the track and create the embed
         track = await self.musicUtils.getTrack(interaction, search, source)
-        await vc.queue.put_wait(track)
 
         #* Play the song
         await asyncio.sleep(1)  #* wait for 1 second for the vc.is_playing() to be updated
         if not vc.playing and not vc.paused:
-            await interaction.followup.send(f"Now Playing {track.name if isinstance(track, wavelink.Playlist) else track.title}")
-            await self.musicUtils.playTrack(interaction, vc, track)
+            await interaction.response.send_message(f"Now Playing {track.name if isinstance(track, wavelink.Playlist) else track.title}")
+            await self.musicUtils.playTrack(vc, track)
         else:
+            await vc.queue.put_wait(track)
             queue_embed = await self.musicUtils.createEmbed(track, "Added to queue 🎵")
-            await interaction.followup.send(embed=queue_embed)
+            await interaction.response.send_message(embed=queue_embed)
+
+    #* Queue command, shows the current queue
+    @app_commands.command(name="queue", description="Shows the current queue.")
+    async def queue(self, interaction: discord.Interaction):
+        #* Gets the voice client and checks if it is playing
+        vc: wavelink.Player = interaction.guild.voice_client
+        if not vc or not vc.playing:
+            await interaction.response.send_message(NOT_PLAYING_MESSAGE, ephemeral=True, delete_after=5)
+            return 
+        if not await self.musicUtils.checkVoiceChannel(interaction):
+            return
+        #* If the queue is not empty, get the queue embed and send it
+        if vc.queue:
+            queue_em = await self.musicUtils.getQueueEmbed(vc)
+            await interaction.response.send_message(embed=queue_em)
+        else:
+            #* If the queue is empty, send a message
+            await interaction.response.send_message("The queue is empty.", ephemeral=True, delete_after=5)
+
+    #* Clear command, clears the current queue
+    @app_commands.command(name="clear", description="Clears the current queue.")
+    @app_commands.checks.has_role("DJ")
+    async def clear(self, interaction: discord.Interaction):
+        #* Gets the voice client and checks if it is playing
+        vc: wavelink.Player = interaction.guild.voice_client
+        if not vc or not vc.playing:
+            await interaction.response.send_message(NOT_PLAYING_MESSAGE, ephemeral=True, delete_after=5)
+            return
+        #* Clears the queue
+        vc.queue.clear()
+        await interaction.response.send_message("Cleared the queue.", ephemeral=True, delete_after=5)
+
+    async def seek(self, interaction: discord.Interaction, seek_time: int):
+        if not await self.musicUtils.checkDJRole(interaction):
+            return
+        #* Gets the voice client and checks if it is playing
+        vc: wavelink.Player = interaction.guild.voice_client
+        if not vc or not vc.playing:
+            await interaction.response.send_message(NOT_PLAYING_MESSAGE, ephemeral=True, delete_after=5)
+            return
+        #* Seeks the current song
+        await vc.seek(vc.position + seek_time)
+        msg = f"Seeked {abs(seek_time)/1000} seconds forward" if seek_time > 0 else f"Seeked {abs(seek_time)/1000} seconds backward"
+        await interaction.response.send_message(msg, ephemeral=True, delete_after=5)
  
     async def pause(self, interaction: discord.Interaction):
         if not await self.musicUtils.checkVoiceChannel(interaction):
@@ -123,37 +185,6 @@ class Music(commands.Cog):
             await interaction.response.send_message("Skipped the current song. The queue is empty.", ephemeral=True, delete_after=5)
         else:
             await interaction.response.send_message("Skipped the current song.", ephemeral=True, delete_after=5)
-
-    #* Queue command, shows the current queue
-    @app_commands.command(name="queue", description="Shows the current queue.")
-    async def queue(self, interaction: discord.Interaction):
-        #* Gets the voice client and checks if it is playing
-        vc: wavelink.Player = interaction.guild.voice_client
-        if not vc or not vc.playing:
-            await interaction.response.send_message(NOT_PLAYING_MESSAGE, ephemeral=True, delete_after=5)
-            return 
-        if not await self.musicUtils.checkVoiceChannel(interaction):
-            return
-        #* If the queue is not empty, get the queue embed and send it
-        if vc.queue:
-            queue_em = await self.getQueueEmbed(vc)
-            await interaction.response.send_message(embed=queue_em)
-        else:
-            #* If the queue is empty, send a message
-            await interaction.response.send_message("The queue is empty.", ephemeral=True, delete_after=5)
-    
-    #* Clear command, clears the current queue
-    @app_commands.command(name="clear", description="Clears the current queue.")
-    @app_commands.checks.has_role("DJ")
-    async def clear(self, interaction: discord.Interaction):
-        #* Gets the voice client and checks if it is playing
-        vc: wavelink.Player = interaction.guild.voice_client
-        if not vc or not vc.playing:
-            await interaction.response.send_message(NOT_PLAYING_MESSAGE, ephemeral=True, delete_after=5)
-            return
-        #* Clears the queue
-        vc.queue.clear()
-        await interaction.response.send_message("Cleared the queue.", ephemeral=True, delete_after=5)
 
     #* Disconnect command, disconnects the bot from the voice channel
     async def disconnect(self, interaction: discord.Interaction):
@@ -204,19 +235,26 @@ class Music(commands.Cog):
     #* Error Handling, these functions are called when an error occurs sending a message to the user
     @play.error
     async def play_error(self, interaction: discord.Interaction, error):
+        # Log the error for debugging
+        print(f"Error in play command: {error}")
+        print(error.args)
+
         # Check if the interaction is still valid
-        if not interaction.response.is_done():
-            if isinstance(error, app_commands.errors.MissingRole):
-                await interaction.response.send_message(ROLE_REQUIRED_MESSAGE, ephemeral=True, delete_after=5)
-            else:
-                await interaction.response.send_message("Invalid search query.", ephemeral=True, delete_after=5)
-                print(error)
+        if interaction.response.is_done():
+            try:
+                if isinstance(error, app_commands.errors.MissingRole):
+                    await interaction.followup.send(ROLE_REQUIRED_MESSAGE, ephemeral=True, delete_after=5)
+            except discord.errors.HTTPException as e:
+                print(f"Failed to send follow-up message: {e}")
         else:
-            print("The interaction is no longer valid.")
+            try:
+                await interaction.response.send_message("An error occurred while processing your request.", ephemeral=True, delete_after=5)
+            except discord.errors.HTTPException as e:
+                print(f"Failed to send response message: {e}")
 
     @queue.error
     async def queue_error(self, interaction: discord.Interaction, error):
-        await interaction.response.send_message(UNKNOWN_ERROR_MESSAGE, ephemeral=True, delete_after=5)
+        await interaction.followup.send(UNKNOWN_ERROR_MESSAGE, ephemeral=True, delete_after=5)
         print(error.args)
 
             

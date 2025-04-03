@@ -9,6 +9,7 @@ from cogs.DatabaseHandler import DatabaseHandler
 from cogs.Commands.Fun.FunCommandsUtils import FunCommandsUtils
 from cogs.constants import (
     API_URL,
+    JOKE_TYPES
 )
 
 class FunCommands(commands.Cog):
@@ -29,12 +30,27 @@ class FunCommands(commands.Cog):
     @app_commands.command(name="joke", description="Sends a random joke")
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def joke(self, interaction : discord.Interaction):
+    @app_commands.describe(type = "Type of joke")
+    @app_commands.choices(type = [
+        Choice(name = "Programming", value = "Programming"),
+        Choice(name = "Misc", value = "Miscellaneous"),
+        Choice(name = "Dark", value = "Dark"),
+        Choice(name = "Pun", value = "Pun"),
+        Choice(name = "Spooky", value = "Spooky"),
+        Choice(name = "Christmas", value = "Christmas")
+        ])
+    async def joke(self, interaction : discord.Interaction, type : str = None):
+        #* If the type is None, set it to "Any"
+        if type is None or type not in JOKE_TYPES:
+            type = "Any"
+
         async with aiohttp.ClientSession() as session:
-            headers = {"Accept": "application/json", "User-Agent": "VeloxDiscordBot (https://github.com/FernandoJVideira/VeloxDiscordBot)"}
-            async with session.get(API_URL, headers=headers) as response:
+            async with session.get(API_URL + f"/joke/{type}") as response:
                 data = await response.json()
-                await interaction.response.send_message(data["joke"])
+                if data["type"] == "single":
+                    await interaction.response.send_message(data["joke"])
+                elif data["type"] == "twopart":
+                    await interaction.response.send_message(f"{data['setup']}\n{data['delivery']}")
 
     #* Sends a message with a coinflip
     @app_commands.command(name="coinflip", description="Flips a coin")
@@ -82,12 +98,13 @@ class FunCommands(commands.Cog):
             return await interaction.response.send_message("Invalid hand! Please choose between ✌️, ✋ or 🤜", ephemeral=True, delete_after=5)
         #* Gets the user's score 
         score = await self.utils.get_score(interaction)
+        new_score = score[0]
         #* If the user wins the returned color is green, otherwise it's red
         #* The result is the game result
         result, color = await self.utils.determine_game_result(hand, bot_hand)
         #* Updates the user's score
         if result == "You won!":
-            new_score = score[0] + 1
+            new_score += 1
             query = "UPDATE rps SET score = ? WHERE guild_id = ? AND user_id = ?"
             self.database.execute_db_query(query, (new_score, interaction.guild.id, interaction.user.id))
         #* Sends the game result
