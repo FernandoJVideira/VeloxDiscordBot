@@ -23,7 +23,10 @@ class EventUtils:
         if channel_id:
             #* Gets the guild and the channel
             guild = self.bot.get_guild(guild_id)
-            channel = guild.get_channel(channel_id[0])
+            if guild:
+                channel = guild.get_channel(channel_id[0])
+            else:
+                channel = None
         else:
             channel = None
         return channel

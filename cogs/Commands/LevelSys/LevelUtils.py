@@ -77,6 +77,10 @@ class LevelUtils:
         #* The enumerate function is used to get the index and user data in the loop
         for index, user_data in enumerate(data, start=1):
             user = interaction.guild.get_member(user_data[2])
+            
+            if not user:
+                continue
+
             field_name = f"{index}. {user.display_name}"
             field_value = f"Level: **{user_data[0]}** | XP: **{user_data[1]}**"
             em.add_field(name=field_name, value=field_value, inline=False)

@@ -62,6 +62,12 @@ class EventHandler(commands.Cog):
             welcome_embed = await self.event_utils.create_welcome_embed(member,welcome_message[0], welcome_gif[0])
             await guild_welcome_channel.send(member.mention, embed=welcome_embed)
 
+    @commands.Cog.listener()
+    async def on_raw_member_remove(self, member):
+        guild = member.guild
+        query = "DELETE FROM levels WHERE user = ? AND guild = ?"
+        self.database.execute_db_query(query, (member.id, guild.id))
+
     #* When a message is sent, check if the level system is enabled, if so, add xp to the user
     @commands.Cog.listener()
     async def on_message(self, message):    

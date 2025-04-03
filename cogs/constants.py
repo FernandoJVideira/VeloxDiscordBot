@@ -2,7 +2,7 @@
 EXTENTIONS = [
     "cogs.Commands.Sync", 
     "cogs.Events.EventHandler", 
-    "cogs.Commands.Music.Music", 
+    #"cogs.Commands.Music.Music", 
     "cogs.Commands.Fun.FunCommands",
     "cogs.Commands.LevelSys.LevelSysConfig",
     "cogs.Commands.LevelSys.LevelSysCommands",

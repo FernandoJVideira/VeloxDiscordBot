@@ -117,24 +117,11 @@ class Music(commands.Cog):
             return
         #* If the queue is not empty, get the queue embed and send it
         if vc.queue:
-            queue_em = await self.getQueueEmbed(vc)
+            queue_em = await self.musicUtils.getQueueEmbed(vc)
             await interaction.response.send_message(embed=queue_em)
         else:
             #* If the queue is empty, send a message
             await interaction.response.send_message("The queue is empty.", ephemeral=True, delete_after=5)
-
-    @app_commands.command(name="set_volume", description="Set the volume of the player.")
-    @app_commands.checks.has_role("DJ")
-    @app_commands.describe(volume="The volume you want to set. Must be between 0 and 100.")
-    async def set_volume(self, interaction: discord.Interaction, volume: int):
-        #* Gets the voice client and checks if it is playing
-        vc: wavelink.Player = interaction.guild.voice_client
-        if not vc or not vc.playing:
-            await interaction.response.send_message(NOT_PLAYING_MESSAGE, ephemeral=True, delete_after=5)
-            return
-        #* Sets the volume
-        await vc.set_volume(volume*10)
-        await interaction.response.send_message(f"Set the volume to {volume}.", ephemeral=True, delete_after=5)
 
     #* Clear command, clears the current queue
     @app_commands.command(name="clear", description="Clears the current queue.")
@@ -159,7 +146,8 @@ class Music(commands.Cog):
             return
         #* Seeks the current song
         await vc.seek(vc.position + seek_time)
-        await interaction.response.send_message(f"Skipped {abs(seek_time)/1000} seconds.", ephemeral=True, delete_after=5)
+        msg = f"Seeked {abs(seek_time)/1000} seconds forward" if seek_time > 0 else f"Seeked {abs(seek_time)/1000} seconds backward"
+        await interaction.response.send_message(msg, ephemeral=True, delete_after=5)
  
     async def pause(self, interaction: discord.Interaction):
         if not await self.musicUtils.checkVoiceChannel(interaction):
