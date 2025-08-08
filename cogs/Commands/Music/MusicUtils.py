@@ -2,6 +2,7 @@ import datetime
 import discord
 from discord.utils import get
 import wavelink
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
 class MusicUtils:
     def __init__(self, bot):
@@ -14,11 +15,11 @@ class MusicUtils:
         else:
             vc: wavelink.Player = interaction.guild.voice_client
         return vc
-    
+
 
     async def checkURL(self, search: str):
         #*Check if the search query is a URL
-        if search.startswith("https://youtu"):
+        if search.startswith("https://www.youtu"):
             return wavelink.TrackSource.YouTube
         elif search.startswith("https://soundcloud"):
             return wavelink.TrackSource.SoundCloud
@@ -26,7 +27,22 @@ class MusicUtils:
             return wavelink.TrackSource.YouTubeMusic
         else:
             return wavelink.TrackSource.YouTube
-        
+
+    async def clean_media_url(self, url):
+
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower()
+
+        # Check if it's a YouTube domain
+        if domain.endswith('youtube.com') or domain.endswith('youtu.be'):
+            query_pairs = parse_qsl(parsed.query, keep_blank_values=True)
+            video_param = [(k, v) for (k, v) in query_pairs if k == 'v']
+            new_query = urlencode(video_param)
+            return urlunparse(parsed._replace(query=new_query))
+        else:
+            # Return unchanged for other domains like SoundCloud
+            return url
+
 
     async def checkDJRole(self, interaction: discord.Interaction):
         #*Check if the user has the DJ role
@@ -35,7 +51,7 @@ class MusicUtils:
             await interaction.response.send_message("You must have the DJ role to use this command.", ephemeral=True, delete_after=5)
             return False
         return True
-    
+
     async def checkVoiceChannel(self, interaction: discord.Interaction):
         #* Verify if the user is in a voice channel
         if interaction.user.voice is None:
@@ -73,8 +89,9 @@ class MusicUtils:
 
         if not isinstance(tracks, wavelink.Playlist):
             tracks: wavelink.Playable = tracks[0]
+
         return tracks
-    
+
     async def createEmbed(self, track, embed_title):
         #*If a playlist is searched, the enbed will have a different format and it's title will be the playlist name, else the embed will have a different format and it's title will be the song title
         em = discord.Embed(title=f"{embed_title}", description=f"{track.title} by {track.author}", color=discord.Color.orange())
@@ -83,12 +100,12 @@ class MusicUtils:
             em.set_thumbnail(url=track.artwork)
             em.add_field(name="Duration", value=str(datetime.timedelta(milliseconds=track.length)) if not track.is_stream else "Live")
         return em
-    
+
 
     async def playTrack(self, vc: wavelink.Player, tracks):
         #*Play the track from the queue
         await vc.play(tracks)
-    
+
 
     async def getQueueEmbed(self, vc: wavelink.Player):
         #*Set a counter and a list of songs

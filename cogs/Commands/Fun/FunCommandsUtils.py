@@ -149,7 +149,6 @@ class FunCommandsUtils:
         em.add_field(name = "/moderation unban user#XXXX", value = "Unbans a user from the server!", inline = False)
         em.add_field(name = "/moderation unmute/undeafen @user", value = "Unmutes/Undeafens a user in a Voice Channel!", inline = False)
         em.add_field(name = "/moderation voicekick @user", value = "Kicks a user from the Voice Channel!", inline = False)
-        em.add_field(name = "/poll minutes \"question\" \"options\"", value = "This comand allows you to start a poll", inline = False)
         return em
     
     async def createConfigCmdEmbed(self):
