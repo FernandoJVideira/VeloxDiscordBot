@@ -16,7 +16,7 @@ Velox bot is a general-purpose discord bot made in python. It is equiped with co
 - Server Edit Settings
 - Leveling System
 - Music Commands
-- Fun Commands (RPS, Scream, Yell, Poll, etc)
+- Fun Commands (RPS, Scream, Yell, etc)
 
 ## Installation
 

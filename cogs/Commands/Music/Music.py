@@ -8,9 +8,18 @@ from discord.app_commands import Choice
 from cogs.UI import ButtonView
 from cogs.Commands.Music.MusicUtils import MusicUtils
 from cogs.constants import (
-    NOT_PLAYING_MESSAGE, 
-    UNKNOWN_ERROR_MESSAGE, 
+    NOT_PLAYING_MESSAGE,
+    UNKNOWN_ERROR_MESSAGE,
     ROLE_REQUIRED_MESSAGE
+)
+import logging
+import sys
+
+# Set up logging to stdout
+logging.basicConfig(
+    stream=sys.stdout,
+    level=logging.DEBUG,  # adjust to your preferred level
+    format='%(asctime)s %(levelname)s: %(message)s'
 )
 
 class Music(commands.Cog):
@@ -20,14 +29,14 @@ class Music(commands.Cog):
         self.bot = bot
         self.musicUtils = MusicUtils(bot)
         self.should_disconnect = False
-        
-    #* Setup hooks 
+
+    #* Setup hooks
     async def cog_load(self) -> None:
         #*Create the wavelink node
         nodes = [wavelink.Node(uri=os.getenv('LAVALINK_HOST'), password=os.getenv('LAVALINK_PASSWORD'))]
         #*Connect the node to the bot
         await wavelink.Pool.connect(nodes = nodes, client=self.bot, cache_capacity = 100)
-        
+
     #* Events
     @commands.Cog.listener()
     #*When the wavelink node is ready
@@ -42,7 +51,7 @@ class Music(commands.Cog):
         track: wavelink.Playable = payload.track
         embed: discord.Embed = await self.musicUtils.createEmbed(track, "Now Playing 🎵")
         await player.home.send(embed=embed, view=ButtonView(self),)
-        self.should_disconnect = False 
+        self.should_disconnect = False
 
     @commands.Cog.listener()
     async def on_wavelink_track_end(self, payload: wavelink.TrackEndEventPayload) -> None:
@@ -69,18 +78,20 @@ class Music(commands.Cog):
         ])
     async def play(self, interaction: discord.Interaction, search: str, source: str = None):
        #* await interaction.response.defer()
-        
+
         #* Verify if the user is in a voice channel
         if not await self.musicUtils.checkVoiceChannel(interaction):
             return
-        
+
         #* Verify if the user is in the same voice channel as the bot
         if not await self.musicUtils.checkDJRole(interaction):
             return
-        
+
+        search = await self.musicUtils.clean_media_url(search)
+
         #* Get the source of the song based on the search query or the source parameter
         source = await self.musicUtils.checkURL(search) if source is None else await self.musicUtils.getSource(source)
-        
+
         #* Verify if the bot is in a voice channel and connect if not
         vc = await self.musicUtils.connectToChannel(interaction)
         vc.autoplay = wavelink.AutoPlayMode.partial
@@ -112,7 +123,7 @@ class Music(commands.Cog):
         vc: wavelink.Player = interaction.guild.voice_client
         if not vc or not vc.playing:
             await interaction.response.send_message(NOT_PLAYING_MESSAGE, ephemeral=True, delete_after=5)
-            return 
+            return
         if not await self.musicUtils.checkVoiceChannel(interaction):
             return
         #* If the queue is not empty, get the queue embed and send it
@@ -148,7 +159,7 @@ class Music(commands.Cog):
         await vc.seek(vc.position + seek_time)
         msg = f"Seeked {abs(seek_time)/1000} seconds forward" if seek_time > 0 else f"Seeked {abs(seek_time)/1000} seconds backward"
         await interaction.response.send_message(msg, ephemeral=True, delete_after=5)
- 
+
     async def pause(self, interaction: discord.Interaction):
         if not await self.musicUtils.checkVoiceChannel(interaction):
             return
@@ -158,7 +169,7 @@ class Music(commands.Cog):
         vc: wavelink.Player = interaction.guild.voice_client
         if not vc or not vc.playing:
             await interaction.response.send_message(NOT_PLAYING_MESSAGE)
-            return 
+            return
         #* Toggle the pause
         await vc.pause(not vc.paused)
 
@@ -173,7 +184,7 @@ class Music(commands.Cog):
         vc: wavelink.Player = interaction.guild.voice_client
         if not vc or not vc.playing:
             await interaction.response.send_message(NOT_PLAYING_MESSAGE, ephemeral=True, delete_after=5)
-            return 
+            return
         elif vc.queue.mode != wavelink.QueueMode.normal:
             vc.queue.mode = wavelink.QueueMode.normal
             await interaction.response.send_message("Looping is now disabled.", ephemeral=True, delete_after=5)
@@ -236,8 +247,7 @@ class Music(commands.Cog):
     @play.error
     async def play_error(self, interaction: discord.Interaction, error):
         # Log the error for debugging
-        print(f"Error in play command: {error}")
-        print(error.args)
+        logging.error(f"Error in play command: {error}")
 
         # Check if the interaction is still valid
         if interaction.response.is_done():
@@ -245,18 +255,17 @@ class Music(commands.Cog):
                 if isinstance(error, app_commands.errors.MissingRole):
                     await interaction.followup.send(ROLE_REQUIRED_MESSAGE, ephemeral=True, delete_after=5)
             except discord.errors.HTTPException as e:
-                print(f"Failed to send follow-up message: {e}")
+                logging.error(f"Failed to send follow-up message: {e}")
         else:
             try:
                 await interaction.response.send_message("An error occurred while processing your request.", ephemeral=True, delete_after=5)
             except discord.errors.HTTPException as e:
-                print(f"Failed to send response message: {e}")
+                logging.error(f"Failed to send response message: {e}")
 
     @queue.error
     async def queue_error(self, interaction: discord.Interaction, error):
         await interaction.followup.send(UNKNOWN_ERROR_MESSAGE, ephemeral=True, delete_after=5)
-        print(error.args)
 
-            
+
 async def setup(bot):
     await bot.add_cog(Music(bot))
