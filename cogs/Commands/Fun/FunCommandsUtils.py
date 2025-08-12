@@ -60,14 +60,14 @@ class FunCommandsUtils:
                 modifier = int(part) if part != '' else 0 # Convert the part to an integer and add it to the modifier
 
         return num_dice, dice_type, modifier
-    
+
 
     async def roll_single_dice(self, dice_str: str):
         num_dice, dice_type, modifier = await self.parse_dice_str(dice_str)
         rolls = [await self.roll_dice(dice_type) for _ in range(num_dice)]
         roll_strs = [f'**{roll}**' if roll in [1, dice_type] else str(roll) for roll in rolls]
         return rolls, ", ".join(roll_strs), modifier
-    
+
 
     async def roll_multiple_dice(self, num_dice, dice_type, modifier, modifier_line) -> list:
         messages = []
@@ -107,9 +107,9 @@ class FunCommandsUtils:
 
     async def roll_dice(self, dice_type: int) -> int:
         return random.randint(1, dice_type)
-    
-        
-    
+
+
+
     async def createFunCmdEmbed(self):
         em = discord.Embed(title = "Fun Commands", description = "These are the bot's Fun commands", color = discord.Colour.orange())
         em.set_thumbnail(url = EMBED_IMAGE)
@@ -125,7 +125,7 @@ class FunCommandsUtils:
         em.add_field(name = "/rewards", value = "This comand allows you to view the rewards for each level", inline = False)
         em.add_field(name = "/leaderboard", value = "This comand allows you to view the server's leaderboard", inline = False)
         return em
-    
+
     async def createMusicCmdEmbed(self):
         em = discord.Embed(title = "Music Commands", description = "These are the Bot's Music Commands", color = discord.Colour.orange())
         em.set_thumbnail(url = EMBED_IMAGE)
@@ -133,7 +133,7 @@ class FunCommandsUtils:
         em.add_field(name = "/queue", value = "This command allows the user to view what songs are in queue!", inline = False)
         em.add_field(name = "/clear", value = "This command allows the user to clear the queue!", inline = False)
         return em
-    
+
     async def createAdminCmdEmbed(self):
         em = discord.Embed(title = "Moderation/Admin Commands", description = "These are the Bot's Moderation Commands", color = discord.Colour.orange())
         em.set_thumbnail(url = EMBED_IMAGE)
@@ -150,7 +150,7 @@ class FunCommandsUtils:
         em.add_field(name = "/moderation unmute/undeafen @user", value = "Unmutes/Undeafens a user in a Voice Channel!", inline = False)
         em.add_field(name = "/moderation voicekick @user", value = "Kicks a user from the Voice Channel!", inline = False)
         return em
-    
+
     async def createConfigCmdEmbed(self):
         em = discord.Embed(title = "Bot Config Commands", description = "These are the Bot's Config Commands", color = discord.Colour.orange())
         em.set_thumbnail(url = EMBED_IMAGE)
@@ -179,7 +179,7 @@ class FunCommandsUtils:
         em.add_field(name = "/slvl setlevelupmessage", value = "Allows you to set the Level Up Message", inline = False)
         em.add_field(name = "/slvl resetlevelupmessage", value = "Allows you to reset the levelup message", inline = False)
         return em
-    
+
 
 
     async def get_score(self, interaction):
@@ -192,9 +192,10 @@ class FunCommandsUtils:
             self.database.execute_db_query(query, (interaction.guild.id, interaction.user.id, 0))
             return 0
         else:
-            return score
+            # PostgreSQL returns a tuple, safely extract the integer value
+            return self.database.extract_value(score)
 
-    
+
     async def determine_game_result(self, user_hand, bot_hand):
         #*Determines the result of the game
         if user_hand == bot_hand:
@@ -213,14 +214,18 @@ class FunCommandsUtils:
 
 
     async def create_score_embed(self, score):
+        # Make sure score is a simple value, not a tuple
+        score_value = score if isinstance(score, int) else self.database.extract_value(score)
         em = discord.Embed(title="Your RPS Stats", description="These are your RPS Stats", color=discord.Colour.orange())
-        em.add_field(name="Score:", value=score, inline=False)
+        em.add_field(name="Score:", value=score_value, inline=False)
         return em
-    
+
 
     async def create_leaderboard_embed(self, scores):
         em = discord.Embed(title="RPS Leaderboard", description="These is the RPS Leaderboard", color=discord.Colour.orange())
         for score in scores:
-            user = await self.bot.fetch_user(score[0])
-            em.add_field(name=f"{user.display_name}", value=f"Score: {score[1]}", inline=False)
+            user_id = self.database.extract_value(score, 0)
+            score_value = self.database.extract_value(score, 1)
+            user = await self.bot.fetch_user(user_id)
+            em.add_field(name=f"{user.display_name}", value=f"Score: {score_value}", inline=False)
         return em

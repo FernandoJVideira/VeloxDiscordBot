@@ -11,6 +11,17 @@ services:
       - LAVALINK_PASSWORD=<Lavalink Password here>
       - LAVALINK_HOST=<Lavalink Host here>
 
+  postgres:
+    image: postgres:latest
+    networks:
+      - lavalink
+    environment:
+      - POSTGRES_USER=<Database User>
+      - POSTGRES_PASSWORD=<Database Password>
+      - POSTGRES_DB=<Database Name>
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+
 networks:
   lavalink:
     name: lavalink

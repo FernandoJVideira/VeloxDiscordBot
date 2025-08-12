@@ -1,8 +1,10 @@
+from enum import Enum
+
 # Cog Loading
 EXTENTIONS = [
-    "cogs.Commands.Sync", 
-    "cogs.Events.EventHandler", 
-    #"cogs.Commands.Music.Music", 
+    "cogs.Commands.Sync",
+    "cogs.Events.EventHandler",
+    #"cogs.Commands.Music.Music",
     "cogs.Commands.Fun.FunCommands",
     "cogs.Commands.LevelSys.LevelSysConfig",
     "cogs.Commands.LevelSys.LevelSysCommands",
@@ -10,6 +12,21 @@ EXTENTIONS = [
     "cogs.Commands.ServerConfig.ServerConfigCommands",
     "cogs.Commands.Config.BotConfig",
 ]
+
+#Event Types
+class EventTypes(Enum):
+    MEMBER_JOIN = "Member Join"
+    MEMBER_LEAVE = "Member Leave"
+    MEMBER_BAN = "Member Ban"
+    MEMBER_UNBAN = "Member Unban"
+    MEMBER_KICK = "Member Kick"
+    MEMBER_UPDATE = "Member Update"
+    MESSAGE_DELETE = "Message Delete"
+    MESSAGE_EDIT = "Message Edit"
+    GUILD_UPDATE = "Guild Update"
+    CHANNEL_CREATE = "Channel Create"
+    CHANNEL_DELETE = "Channel Delete"
+    CHANNEL_UPDATE = "Channel Update"
 
 # Database
 DB_FILE = "botDB.sql"

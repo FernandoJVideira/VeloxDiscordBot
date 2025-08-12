@@ -1,3 +1,5 @@
+import logging
+from operator import is_
 import datetime
 import discord
 from discord.utils import get
@@ -18,15 +20,27 @@ class MusicUtils:
 
 
     async def checkURL(self, search: str):
-        #*Check if the search query is a URL
-        if search.startswith("https://www.youtu"):
+        if not self.is_valid_url(search):
             return wavelink.TrackSource.YouTube
-        elif search.startswith("https://soundcloud"):
-            return wavelink.TrackSource.SoundCloud
-        elif search.startswith("https://music.youtube"):
-            return wavelink.TrackSource.YouTubeMusic
-        else:
-            return wavelink.TrackSource.YouTube
+
+        domain = urlparse(search).netloc.lower()
+        match domain:
+            case "youtube.com" | "youtu.be":
+                return wavelink.TrackSource.YouTube
+            case "soundcloud.com":
+                return wavelink.TrackSource.SoundCloud
+            case "music.youtube.com":
+                return wavelink.TrackSource.YouTubeMusic
+            case _:
+                return wavelink.TrackSource.YouTube
+
+
+    async def is_valid_url(self, url):
+        try:
+            result = urlparse(url)
+            return all([result.scheme, result.netloc])
+        except ValueError:
+            return False
 
     async def clean_media_url(self, url):
 

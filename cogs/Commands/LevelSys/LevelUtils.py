@@ -7,17 +7,17 @@ class LevelUtils:
 
     def __init__(self, bot):
         self.bot = bot
-        self.database = DatabaseHandler()
-    
+        self.database = bot.db
+
     #*Gets the user's xp and level from the database
     async def getLvlAndXp(self, member, guild):
-        xp_query = "SELECT xp FROM levels WHERE user = ? AND guild = ?"
+        xp_query = "SELECT xp FROM levels WHERE user_id = ? AND guild = ?"
         xp = self.database.fetch_one_from_db(xp_query, (member.id, guild.id))
-        level_query = "SELECT level FROM levels WHERE user = ? AND guild = ?"
+        level_query = "SELECT level FROM levels WHERE user_id = ? AND guild = ?"
         level = self.database.fetch_one_from_db(level_query, (member.id, guild.id))
         #*If there's no xp or level, insert it into the database and return 0 for each
         if not xp or not level:
-            query = "INSERT INTO levels (level, xp, user, guild) VALUES (?,?,?,?)"
+            query = "INSERT INTO levels (level, xp, user_id, guild) VALUES (?,?,?,?)"
             self.database.execute_db_query(query, (0,0,member.id, guild.id))
             return 0, 0
         #*Return the xp and level
@@ -66,7 +66,7 @@ class LevelUtils:
             role_name = role_obj.mention if role_obj else "Role not found"
             em.add_field(name=f"Level {role[2]}", value=role_name, inline=False)
         return em
-    
+
 
     #*Creates a guild level leaderboard embed
     async def createLevelLeaderBoardEmbed(self,data,interaction):
@@ -77,7 +77,7 @@ class LevelUtils:
         #* The enumerate function is used to get the index and user data in the loop
         for index, user_data in enumerate(data, start=1):
             user = interaction.guild.get_member(user_data[2])
-            
+
             if not user:
                 continue
 
