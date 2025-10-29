@@ -1,7 +1,6 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from cogs.DatabaseHandler import DatabaseHandler
 from cogs.Commands.LevelSys.LevelUtils import LevelUtils
 from cogs.constants import (
     LEVELSYS_QUERY,
@@ -11,7 +10,7 @@ from cogs.constants import (
 class LevelSysCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.database = DatabaseHandler()
+        self.database = bot.db
         self.level_utils = LevelUtils(bot)
 
     #* Sends an image with the user's current rank
@@ -26,10 +25,10 @@ class LevelSysCommands(commands.Cog):
         levelsys = self.database.fetch_one_from_db(levelsys_query, (interaction.guild.id,))
 
 
-        if not levelsys[0]:
+        if not self.database.extract_value(levelsys):
             await interaction.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
-        
+
         xp, level = await self.level_utils.getLvlAndXp(member, interaction.guild)
 
         user_data = {
@@ -50,10 +49,10 @@ class LevelSysCommands(commands.Cog):
         levelsys_query = LEVELSYS_QUERY
         levelsys = self.database.fetch_one_from_db(levelsys_query, (interaction.guild.id,))
 
-        if not levelsys[0]:
+        if not self.database.extract_value(levelsys):
             await interaction.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
-        
+
         #* Fetch role rewards
         role_rewards_query = "SELECT * FROM levelsettings WHERE guild_id = ?"
         role_rewards = self.database.fetch_all_from_db(role_rewards_query, (interaction.guild.id,))
@@ -75,12 +74,12 @@ class LevelSysCommands(commands.Cog):
         levelsys_query = LEVELSYS_QUERY
         levelsys = self.database.fetch_one_from_db(levelsys_query, (interaction.guild.id,))
 
-        if not levelsys[0]:
+        if not self.database.extract_value(levelsys):
             await interaction.response.send_message(LVLSYS_DISABLED, ephemeral=True, delete_after=5)
             return
-        
+
         #* Fetch leaderboard data
-        data_query = "SELECT level, xp, user FROM levels WHERE guild = ? ORDER BY level DESC, xp DESC LIMIT 10"
+        data_query = "SELECT level, xp, user_id FROM levels WHERE guild = ? ORDER BY level DESC, xp DESC LIMIT 10"
         data = self.database.fetch_all_from_db(data_query, (interaction.guild.id,))
 
         #*If there's data, create the embed and send it

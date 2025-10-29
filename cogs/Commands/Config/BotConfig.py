@@ -1,18 +1,16 @@
 import discord
 from discord import app_commands
-from discord.app_commands import Choice
 from discord.ext import commands
-from cogs.DatabaseHandler import DatabaseHandler
 from cogs.Commands.Config.BotConfigUtils import BotConfigUtils
 from cogs.Events.EventUtils import EventUtils
 
 class BotConfig(commands.Cog):
-    
+
     def __init__(self, bot):
         self.bot = bot
-        self.database = DatabaseHandler()
+        self.database = bot.db
         self.utils = BotConfigUtils(self.database)
-        self.event_utils = EventUtils(self.database)
+        self.event_utils = EventUtils(self.bot)
 
 
     #* Bot Config Commands
@@ -117,7 +115,7 @@ class BotConfig(commands.Cog):
             self.database.execute_db_query(query, (guild_id, channel_id))
         #* Sends a message
         await command_context.response.send_message(f"Notification Channel set to {twitch_notification_channel.mention}", ephemeral=True, delete_after=5)
-    
+
     @config.command(name="removestreamchannel", description="Removes the Channel set for Twitch Notifications")
     @app_commands.checks.has_permissions(manage_guild = True)
     async def removeStreamChannel(self,interaction : discord.Interaction):
@@ -145,7 +143,7 @@ class BotConfig(commands.Cog):
                 await interaction.response.send_message("This streamer is already in the Streamers List!", ephemeral=True, delete_after=5)
                 return
             query = "INSERT INTO twitch VALUES (?,?,?)"
-            self.database.execute_db_query(query, (streamer,"not live", interaction.guild.id))
+            self.database.execute_db_query(query, (streamer,interaction.guild.id,"not live"))
             await interaction.response.send_message(f"Added {streamer} to the Streamers List!", ephemeral=True, delete_after=5)
 
     @config.command(name="removestreamer", description="Removes a Streamer from Twitch Notifications")
@@ -154,7 +152,7 @@ class BotConfig(commands.Cog):
     async def removeStreamer(self,interaction : discord.Interaction, streamer : str):
         #* If the streamer is a URL, remove the URL
         if streamer.startswith("http://") or streamer.startswith("https://"):
-            streamer = streamer.rstrip('/').split('/')[-1] 
+            streamer = streamer.rstrip('/').split('/')[-1]
         if await self.utils.checkStreamer(streamer) is None:
             await interaction.response.send_message("This streamer is not in the Streamers List!", ephemeral=True, delete_after=5)
             return
@@ -162,7 +160,7 @@ class BotConfig(commands.Cog):
         query = "DELETE FROM twitch WHERE twitch_user = ? AND guild_id = ?"
         self.database.execute_db_query(query, (streamer, interaction.guild.id))
         #* Sends a message
-        await interaction.response.send_message(f"Removed {streamer} from the Streamers List!", ephemeral=True, delete_after=5)      
+        await interaction.response.send_message(f"Removed {streamer} from the Streamers List!", ephemeral=True, delete_after=5)
 
     @config.command(name="setdefaultrole", description="Sets the Default Role when a user joins the server")
     @app_commands.describe(default_role = "The role to set as the Default Role")
@@ -182,7 +180,7 @@ class BotConfig(commands.Cog):
             query = "UPDATE defaultrole SET role_id = ? WHERE guild_id = ?"
             self.database.execute_db_query(query, (role_id, guild_id))
         #* Sends a message
-        await command_context.response.send_message(f"Default Role set to {default_role.mention}", ephemeral=True, delete_after=5)  
+        await command_context.response.send_message(f"Default Role set to {default_role.mention}", ephemeral=True, delete_after=5)
 
 async def setup(bot):
     await bot.add_cog(BotConfig(bot))

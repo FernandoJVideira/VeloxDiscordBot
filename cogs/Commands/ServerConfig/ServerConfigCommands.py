@@ -1,13 +1,12 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from cogs.DatabaseHandler import DatabaseHandler
 from cogs.constants import NO_PERMS_MESSAGE
 
 class ServerConfigCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.database = DatabaseHandler()
+        self.database = bot.db
 
     """This group of commands allows the user to edit the server settings"""
     serverGroup = app_commands.Group(name = "editserver", description="Edit Server Settings")

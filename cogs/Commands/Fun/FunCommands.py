@@ -5,7 +5,6 @@ from discord import app_commands
 from discord.app_commands import Choice
 import random
 from discord.ext import commands
-from cogs.DatabaseHandler import DatabaseHandler
 from cogs.Commands.Fun.FunCommandsUtils import FunCommandsUtils
 from cogs.constants import (
     API_URL,
@@ -13,10 +12,10 @@ from cogs.constants import (
 )
 
 class FunCommands(commands.Cog):
-    
+
     def __init__(self, bot):
         self.bot = bot
-        self.database = DatabaseHandler()
+        self.database = bot.db
         self.utils = FunCommandsUtils(bot, self.database)
 
     #* Fun Commands
@@ -74,13 +73,13 @@ class FunCommands(commands.Cog):
             match pattern_index:
                 case 1 | 0:
                     text = await self.utils.sum_rolled_dice(dice)
-                    await interaction.response.send_message(text)                  
+                    await interaction.response.send_message(text)
                 case 2:
-                    num_dice, dice_type, modifier, modifier_line = await self.parse_separate_dice(dice) 
+                    num_dice, dice_type, modifier, modifier_line = await self.parse_separate_dice(dice)
                     messages = await self.utils.roll_multiple_dice(num_dice, dice_type, modifier, modifier_line)
                     await interaction.response.send_message('\n'.join(messages))
 
-    
+
     #* Plays Rock Paper Scissors with the user
     @app_commands.command(name="rps", description="Plays Rock Paper Scissors with you")
     @app_commands.describe(hand = "Choose between ✌️, ✋ or 🤜")
@@ -96,9 +95,9 @@ class FunCommands(commands.Cog):
         #* Verifies if the user's choice is valid
         if hand not in hands:
             return await interaction.response.send_message("Invalid hand! Please choose between ✌️, ✋ or 🤜", ephemeral=True, delete_after=5)
-        #* Gets the user's score 
+        #* Gets the user's score
         score = await self.utils.get_score(interaction)
-        new_score = score[0]
+        new_score = score if isinstance(score, int) else self.database.extract_value(score)
         #* If the user wins the returned color is green, otherwise it's red
         #* The result is the game result
         result, color = await self.utils.determine_game_result(hand, bot_hand)
@@ -119,19 +118,20 @@ class FunCommands(commands.Cog):
 
         #* If the user has played RPS, create the embed and send it
         if user_score is not None:
-            user_score = user_score[0]
+            # For PostgreSQL compatibility, use the safe extract method
+            user_score = self.database.extract_value(user_score)
             embed = await self.utils.create_score_embed(user_score)
             await interaction.response.send_message(embed=embed)
         else:
             #* If the user hasn't played RPS, send a message
             await interaction.response.send_message("You haven't played RPS yet!", ephemeral=True, delete_after=5)
-    
+
     @app_commands.command(name="rpsleaderboard", description="Shows the RPS Leaderboard")
     async def rpsleaderboard(self, interaction: discord.Interaction):
         #* Fetch leaderboard scores
         leaderboard_query = "SELECT user_id, score FROM rps WHERE guild_id = ? ORDER BY score DESC"
         leaderboard_scores = self.database.fetch_all_from_db(leaderboard_query, (interaction.guild.id,))
-        
+
         #* If there's data, create the embed and send it
         if leaderboard_scores is not None:
             embed = await self.utils.create_leaderboard_embed(leaderboard_scores)
@@ -180,6 +180,6 @@ class FunCommands(commands.Cog):
         await interaction.user.create_dm()
         for em in embeds:
             await interaction.user.dm_channel.send(embed = em)
-    
+
 async def setup(bot) -> None:
     await bot.add_cog(FunCommands(bot))

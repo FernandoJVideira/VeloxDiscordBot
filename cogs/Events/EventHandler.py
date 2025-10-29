@@ -8,7 +8,7 @@ class EventHandler(commands.Cog):
     #* Constructor
     def __init__(self, bot):
         self.bot = bot
-        self.database = DatabaseHandler()
+        self.database = bot.db
         self.event_utils = EventUtils(bot)
 
 
@@ -40,7 +40,7 @@ class EventHandler(commands.Cog):
         guild_welcome_channel = await self.event_utils.get_channel("welcome_channel_id", "welcome", guild.id)
 
         query = "SELECT role_id FROM defaultrole WHERE guild_id = ?"
-        
+
         defaultrole = self.database.fetch_one_from_db(query, (guild.id,))
 
         await self.event_utils.setDefaultRole(guild, member, defaultrole)
@@ -59,19 +59,23 @@ class EventHandler(commands.Cog):
             welcome_message = self.database.fetch_one_from_db(message_query, (guild.id,))
             welcome_gif = self.database.fetch_one_from_db(gif_query, (guild.id,))
 
-            welcome_embed = await self.event_utils.create_welcome_embed(member,welcome_message[0], welcome_gif[0])
+            welcome_embed = await self.event_utils.create_welcome_embed(
+                member,
+                self.database.extract_value(welcome_message),
+                self.database.extract_value(welcome_gif)
+            )
             await guild_welcome_channel.send(member.mention, embed=welcome_embed)
 
     @commands.Cog.listener()
     async def on_raw_member_remove(self, member):
         guild = member.guild
-        query = "DELETE FROM levels WHERE user = ? AND guild = ?"
+        query = "DELETE FROM levels WHERE user_id = ? AND guild = ?"
         self.database.execute_db_query(query, (member.id, guild.id))
 
     #* When a message is sent, check if the level system is enabled, if so, add xp to the user
     @commands.Cog.listener()
-    async def on_message(self, message):    
-        await self.gain_xp(message)                
+    async def on_message(self, message):
+        await self.gain_xp(message)
         await self.bot.process_commands(message)
 
     async def gain_xp(self, message):
@@ -79,16 +83,16 @@ class EventHandler(commands.Cog):
             return
         author = message.author
         guild = message.guild
-        
-        level_up_channel = await self.event_utils.get_channel("levelup_channel_id", "levelup", guild.id)        
+
+        level_up_channel = await self.event_utils.get_channel("levelup_channel_id", "levelup", guild.id)
         #* Get tge level system status
         query = "SELECT levelsys FROM levelsettings WHERE guild_id = ?"
         levelsys = self.database.fetch_one_from_db(query, (guild.id,))
 
         #* If the level system is disabled, return
-        if not levelsys or not levelsys[0]:
+        if not levelsys or not self.database.extract_value(levelsys):
             return
-        
+
         #* Get the user's xp and level
         xp, level = await self.event_utils.getLvlXp(author, guild)
 
@@ -120,7 +124,7 @@ class EventHandler(commands.Cog):
         #* Gets all the guilds that have twitch streamers
         guilds_query = "SELECT guild_id FROM twitch"
         guilds = self.database.fetch_all_from_db(guilds_query,())
-        
+
         #* Checks if there are any guilds with twitch streamers
         if guilds is not None:
             for guild_id in guilds:
@@ -139,13 +143,16 @@ class EventHandler(commands.Cog):
 
                     #* If the streamer is live
                     if isLive is True:
-                        await self.event_utils.sendNotificiation(streamer_status, channel, twitch_user)
+                        await self.event_utils.sendNotificiation(
+                            self.database.extract_value(streamer_status),
+                            channel,
+                            twitch_user
+                        )
                     else:
                         #* Update the streamer's status to not live
                         actual_status = 'not live'
-                        await self.event_utils.updateStreamerStatus(twitch_user[0], actual_status)  
+                        await self.event_utils.updateStreamerStatus(twitch_user[0], actual_status)
 
 
 async def setup(bot) -> None:
     await bot.add_cog(EventHandler(bot))
-
