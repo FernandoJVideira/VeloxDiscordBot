@@ -4,6 +4,7 @@ WORKDIR /bot
 
 COPY bot.py /bot
 COPY botDB.sql /bot
+COPY bot_postgres_schema.sql /bot
 RUN mkdir /bot/cogs
 COPY cogs /bot/cogs
 COPY requirements.txt /bot

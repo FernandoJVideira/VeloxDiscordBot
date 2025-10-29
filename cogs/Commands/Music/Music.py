@@ -50,7 +50,11 @@ class Music(commands.Cog):
             return
         track: wavelink.Playable = payload.track
         embed: discord.Embed = await self.musicUtils.createEmbed(track, "Now Playing 🎵")
-        await player.home.send(embed=embed, view=ButtonView(self),)
+        requester = track.extras.requester
+        req_id = track.extras.requester_id
+        embed.set_footer(text=f"Requested by {requester}")
+
+        await player.home.send(embed=embed, view=ButtonView(self, req_id))
         self.should_disconnect = False
 
     @commands.Cog.listener()
@@ -77,7 +81,8 @@ class Music(commands.Cog):
         Choice(name = "SoundCloud", value = "soundcloud"),
         ])
     async def play(self, interaction: discord.Interaction, search: str, source: str = None):
-       #* await interaction.response.defer()
+        #await interaction.response.defer(ephemeral=False)
+        controller_id = interaction.user.id
 
         #* Verify if the user is in a voice channel
         if not await self.musicUtils.checkVoiceChannel(interaction):
@@ -105,6 +110,19 @@ class Music(commands.Cog):
 
         #* Get the track and create the embed
         track = await self.musicUtils.getTrack(interaction, search, source)
+
+        #* Track requester tagging
+        if isinstance(track, wavelink.Playlist):
+            for playlist_track in track.tracks:
+                playlist_track.extras = {
+                    "requester": interaction.user.display_name,
+                    "requester_id": interaction.user.id
+                    }
+        else:
+            track.extras = {
+                "requester": interaction.user.display_name,
+                "requester_id": interaction.user.id
+            }
 
         #* Play the song
         await asyncio.sleep(1)  #* wait for 1 second for the vc.is_playing() to be updated
@@ -143,12 +161,16 @@ class Music(commands.Cog):
         if not vc or not vc.playing:
             await interaction.response.send_message(NOT_PLAYING_MESSAGE, ephemeral=True, delete_after=5)
             return
+        if not await self.musicUtils.checkVoiceChannel(interaction):
+            return
         #* Clears the queue
         vc.queue.clear()
         await interaction.response.send_message("Cleared the queue.", ephemeral=True, delete_after=5)
 
     async def seek(self, interaction: discord.Interaction, seek_time: int):
         if not await self.musicUtils.checkDJRole(interaction):
+            return
+        if not await self.musicUtils.checkVoiceChannel(interaction):
             return
         #* Gets the voice client and checks if it is playing
         vc: wavelink.Player = interaction.guild.voice_client
@@ -180,6 +202,8 @@ class Music(commands.Cog):
     async def skip(self, interaction: discord.Interaction):
         if not await self.musicUtils.checkDJRole(interaction):
             return
+        if not await self.musicUtils.checkVoiceChannel(interaction):
+            return
         #*Gets the voice client and checks if it is playing
         vc: wavelink.Player = interaction.guild.voice_client
         if not vc or not vc.playing:
@@ -201,6 +225,8 @@ class Music(commands.Cog):
     async def disconnect(self, interaction: discord.Interaction):
         if not await self.musicUtils.checkDJRole(interaction):
             return
+        if not await self.musicUtils.checkVoiceChannel(interaction):
+            return
         #* Gets the voice client and checks if it is playing
         vc: wavelink.Player = interaction.guild.voice_client
         if not vc:
@@ -212,6 +238,8 @@ class Music(commands.Cog):
 
     async def loop(self, interaction: discord.Interaction):
         if not await self.musicUtils.checkDJRole(interaction):
+            return
+        if not await self.musicUtils.checkVoiceChannel(interaction):
             return
         #* Gets the voice client and checks if it is playing
         vc: wavelink.Player = interaction.guild.voice_client
@@ -228,6 +256,8 @@ class Music(commands.Cog):
 
     async def queueLoop(self, interaction: discord.Interaction):
         if not await self.musicUtils.checkDJRole(interaction):
+            return
+        if not await self.musicUtils.checkVoiceChannel(interaction):
             return
         #* Gets the voice client and checks if it is playing
         vc: wavelink.Player = interaction.guild.voice_client

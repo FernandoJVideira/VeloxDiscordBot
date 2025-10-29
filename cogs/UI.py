@@ -6,25 +6,33 @@ class ButtonUI(discord.ui.Button):
         self.music_cog = music_cog
 
     async def callback(self, interaction: discord.Interaction):
-        if self.custom_id == "pause_button":
-            await self.music_cog.pause(interaction)
-        elif self.custom_id == "skip_button":
-            await self.music_cog.skip(interaction)
-        elif self.custom_id == "stop_button":
-            await self.music_cog.disconnect(interaction)
-        elif self.custom_id == "loop_button":
-            await self.music_cog.loop(interaction)
-        elif self.custom_id == "queueloop_button":
-            await self.music_cog.queueLoop(interaction)
-        elif self.custom_id == "seek_back":
-            await self.music_cog.seek(interaction, -10000)
-        elif self.custom_id == "seek_ahead":
-            await self.music_cog.seek(interaction, 10000)
-        # Add more button interactions as needed
+        if interaction.user.id != self.view.controller_id:
+            await interaction.response.send_message("You are not authorized to use these controls.", ephemeral=True)
+            return
+        match self.custom_id:
+            case "pause_button":
+                await self.music_cog.pause(interaction)
+            case "skip_button":
+                await self.music_cog.skip(interaction)
+            case "stop_button":
+                await self.music_cog.disconnect(interaction)
+            case "loop_button":
+                await self.music_cog.loop(interaction)
+            case "queueloop_button":
+                await self.music_cog.queueLoop(interaction)
+            case "seek_back":
+                await self.music_cog.seek(interaction, -10000)
+            case "seek_ahead":
+                await self.music_cog.seek(interaction, 10000) 
+            case _:
+                pass
 
 class ButtonView(discord.ui.View):
-    def __init__(self, music_cog):
+    def __init__(self, music_cog, controller_id):
         super().__init__(timeout=None)
+        self.music_cog = music_cog
+        self.controller_id = controller_id
+
         self.add_item(ButtonUI(label="⏪", style=discord.ButtonStyle.secondary, custom_id="seek_back", music_cog=music_cog))
         self.add_item(ButtonUI(label="⏯️", style=discord.ButtonStyle.primary, custom_id="pause_button", music_cog=music_cog))
         self.add_item(ButtonUI(label="⏩", style=discord.ButtonStyle.secondary, custom_id="seek_ahead", music_cog=music_cog))

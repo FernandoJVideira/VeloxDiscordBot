@@ -2,23 +2,27 @@ services:
   bot:
     build:
       context: .
-      network: host
+      dockerfile: Dockerfile
     networks:
       - lavalink
     environment:
-      - APPLICATION_ID=<Application ID here>
-      - TOKEN=<Token here>
-      - LAVALINK_PASSWORD=<Lavalink Password here>
-      - LAVALINK_HOST=<Lavalink Host here>
+      - DISCORD_TOKEN=
+      - LAVALINK_HOST=
+      - LAVALINK_PORT=
+      - LAVALINK_PASSWORD=
+      - LAVALINK_CERTIFICATE=
+      - LAVALINK_CERTIFICATE_KEY=
 
   postgres:
     image: postgres:latest
     networks:
       - lavalink
+    ports:
+      - 5432:5432
     environment:
-      - POSTGRES_USER=<Database User>
-      - POSTGRES_PASSWORD=<Database Password>
-      - POSTGRES_DB=<Database Name>
+      - POSTGRES_USER=velox
+      - POSTGRES_PASSWORD=velox_pwd
+      - POSTGRES_DB=velox
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
 

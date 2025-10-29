@@ -3,3 +3,4 @@ __pycache__/
 *.db
 vars.env
 docker-compose_original.yml
+postgres_data/

@@ -24,7 +24,6 @@ class VeloxBot(commands.Bot):
             print("✅ Database connection established successfully")
         except Exception as e:
             print(f"❌ Failed to connect to database: {e}")
-            print("Make sure PostgreSQL is running and environment variables are set correctly")
             sys.exit(1)
 
     async def setup_hook(self):

@@ -4,7 +4,7 @@ from enum import Enum
 EXTENTIONS = [
     "cogs.Commands.Sync",
     "cogs.Events.EventHandler",
-    #"cogs.Commands.Music.Music",
+    "cogs.Commands.Music.Music",
     "cogs.Commands.Fun.FunCommands",
     "cogs.Commands.LevelSys.LevelSysConfig",
     "cogs.Commands.LevelSys.LevelSysCommands",
@@ -29,8 +29,8 @@ class EventTypes(Enum):
     CHANNEL_UPDATE = "Channel Update"
 
 # Database
-DB_FILE = "botDB.sql"
-DB_PATH = "bot.db"
+SQLITE_DB_FILE = "bot_sqlite_schema.sql"
+POSTGRES_DB_FILE = "bot_postgres_schema.sql"
 
 # Messages
 NO_PERMS_MESSAGE = "You don't have permission to do that!"

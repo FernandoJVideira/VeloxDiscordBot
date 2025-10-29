@@ -20,7 +20,7 @@ class MusicUtils:
 
 
     async def checkURL(self, search: str):
-        if not self.is_valid_url(search):
+        if not await self.is_valid_url(search):
             return wavelink.TrackSource.YouTube
 
         domain = urlparse(search).netloc.lower()
