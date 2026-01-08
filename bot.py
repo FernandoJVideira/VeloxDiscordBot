@@ -9,7 +9,7 @@ from cogs.constants import EXTENTIONS
 class VeloxBot(commands.Bot):
     def __init__(self):
         # Load environment variables first
-        load_dotenv("./vars.env")
+        #load_dotenv("./vars.env")
 
         super().__init__(
             command_prefix="!",
@@ -47,7 +47,6 @@ class VeloxBot(commands.Bot):
 
 def main():
     bot = VeloxBot()
-    load_dotenv("./vars.env")
     token = os.getenv("TOKEN")
     if not token:
         print("❌ Discord bot token not found in environment variables!")
